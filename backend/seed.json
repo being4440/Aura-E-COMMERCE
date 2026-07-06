@@ -1,0 +1,110 @@
+[
+    {
+        "title": "Royal Gold Earrings",
+        "description": "Handcrafted luxury earrings featuring premium gold-plated finish and timeless elegance.",
+        "category": "Accessories",
+        "price": 12999,
+        "stock": 25,
+        "images": [
+            "/images/royal_gold_earrings.png"
+        ],
+        "featured": true,
+        "rating": 4.8
+    },
+    {
+        "title": "Velvet Evening Dress",
+        "description": "Elegant black velvet dress designed for luxury occasions and formal events.",
+        "category": "Women",
+        "price": 18999,
+        "stock": 15,
+        "images": [
+            "/images/velvet_evening_dress.png"
+        ],
+        "featured": true,
+        "rating": 4.9
+    },
+    {
+        "title": "Premium Leather Handbag",
+        "description": "Luxury handcrafted leather handbag with gold hardware and spacious interior.",
+        "category": "Accessories",
+        "price": 24999,
+        "stock": 20,
+        "images": [
+            "/images/leather_handbag.png"
+        ],
+        "featured": true,
+        "rating": 4.7
+    },
+    {
+        "title": "Classic White Shirt",
+        "description": "Tailored premium cotton shirt suitable for both formal and casual wear.",
+        "category": "Men",
+        "price": 6999,
+        "stock": 35,
+        "images": [
+            "/images/white_shirt.png"
+        ],
+        "featured": false,
+        "rating": 4.5
+    },
+    {
+        "title": "Luxury Chronograph Watch",
+        "description": "Swiss-inspired luxury timepiece featuring sapphire crystal and automatic movement.",
+        "category": "Accessories",
+        "price": 89999,
+        "stock": 10,
+        "images": [
+            "/images/chronograph_watch.png"
+        ],
+        "featured": true,
+        "rating": 5
+    },
+    {
+        "title": "Designer Sunglasses",
+        "description": "Premium polarized sunglasses with luxury metal frame.",
+        "category": "Accessories",
+        "price": 9999,
+        "stock": 40,
+        "images": [
+            "/images/designer_sunglasses.png"
+        ],
+        "featured": false,
+        "rating": 4.4
+    },
+    {
+        "title": "Silk Scarf",
+        "description": "Pure silk scarf crafted for a sophisticated and elegant look.",
+        "category": "Women",
+        "price": 4999,
+        "stock": 50,
+        "images": [
+            "/images/silk_scarf.png"
+        ],
+        "featured": false,
+        "rating": 4.6
+    },
+    {
+        "title": "Luxury Sneakers",
+        "description": "Premium leather sneakers combining comfort and modern style.",
+        "category": "Men",
+        "price": 14999,
+        "stock": 18,
+        "images": [
+            "/images/luxury_sneakers.png"
+        ],
+        "featured": true,
+        "rating": 4.7
+    },
+    {
+        "title": "Diamond Ring",
+        "description": "Exquisite diamond ring crafted with exceptional attention to detail.",
+        "category": "Accessories",
+        "price": 59999,
+        "stock": 8,
+        "images": [
+            "/images/diamond_ring.png"
+        ],
+        "featured": true,
+        "rating": 5
+    }
+]

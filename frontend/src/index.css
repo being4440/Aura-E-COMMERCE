@@ -1,0 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Poppins:wght@300;400;500;600&display=swap');
+
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-luxury-dark text-luxury-white font-inter antialiased selection:bg-luxury-gold selection:text-luxury-dark;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-playfair tracking-wide;
+  }
+  
+  /* Custom scrollbar for luxury feel */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-luxury-dark;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-luxury-bronze/50 rounded-full hover:bg-luxury-gold transition-colors duration-300;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-8 py-3 bg-luxury-gold text-luxury-dark font-poppins font-medium tracking-widest uppercase hover:bg-luxury-white transition-all duration-300 transform hover:scale-105;
+  }
+  .btn-secondary {
+    @apply px-8 py-3 border border-luxury-gold text-luxury-gold font-poppins font-medium tracking-widest uppercase hover:bg-luxury-gold hover:text-luxury-dark transition-all duration-300 transform hover:scale-105;
+  }
+  .glass-card {
+    @apply bg-luxury-secondary/80 backdrop-blur-md border border-luxury-gray/20 shadow-xl;
+  }
+}
+
+/* GSAP and Framer utility classes */
+.reveal-text {
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0% 100%);
+}
