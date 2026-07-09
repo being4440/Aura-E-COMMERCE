@@ -1,69 +1,90 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import toast from 'react-hot-toast';
-import { FiUploadCloud, FiArrowLeft, FiX } from 'react-icons/fi';
-import api from '../../api/api';
+import { FiArrowLeft, FiUploadCloud, FiX } from 'react-icons/fi';
 
 export default function ProductForm() {
+  const { id } = useParams();
   const navigate = useNavigate();
-  const { id } = useParams();          // ← present only on /edit/:id
-  const isEditMode = Boolean(id);
+  const isEditing = !!id;
 
-  const [loading, setLoading] = useState(false);
-  const [fetchLoading, setFetchLoading] = useState(isEditMode);
-  const [existingImages, setExistingImages] = useState([]); // current DB images when editing
+  const [loading, setLoading] = useState(isEditing);
+  const [submitting, setSubmitting] = useState(false);
+  const [categories, setCategories] = useState([]);
+  
   const [formData, setFormData] = useState({
     title: '',
-    description: '',
-    category: 'Men',
     brand: '',
+    category: '',
     price: '',
     stock: '',
+    description: '',
     sizes: '',
     colors: '',
+    isActive: true,
     featured: false
   });
-  const [imageFiles, setImageFiles] = useState([]);
-  const [previewUrls, setPreviewUrls] = useState([]);
 
-  // ── Step 2: Fetch existing product when in edit mode ──────────────────────
+  const [existingImages, setExistingImages] = useState([]);
+  const [newImages, setNewImages] = useState([]);
+
   useEffect(() => {
-    if (!isEditMode) return;
-
-    const fetchProduct = async () => {
+    const fetchCategories = async () => {
       try {
-        const res = await api.get(`/products/${id}`);
-        const p = res.data.data.product;
-
-        setFormData({
-          title: p.title || '',
-          description: p.description || '',
-          category: p.category || 'Men',
-          brand: p.brand || '',
-          price: p.price ?? '',
-          stock: p.stock ?? '',
-          sizes: (p.sizes || []).join(', '),
-          colors: (p.colors || []).join(', '),
-          featured: p.featured || false
+        const token = localStorage.getItem('token');
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/categories`, {
+          headers: { Authorization: `Bearer ${token}` }
         });
-
-        // Show existing cloud images as previews
-        if (p.images?.length) {
-          setExistingImages(p.images);
-          setPreviewUrls(p.images);
+        if (res.data.success) {
+          setCategories(res.data.data);
+          // Set default category if creating new
+          if (!isEditing && res.data.data.length > 0) {
+            setFormData(prev => ({ ...prev, category: res.data.data[0].name }));
+          }
         }
-      } catch (err) {
-        toast.error('Failed to load product data');
-        navigate('/admin/products');
-      } finally {
-        setFetchLoading(false);
+      } catch (error) {
+        toast.error('Failed to fetch categories');
       }
     };
+    fetchCategories();
+  }, [isEditing]);
 
-    fetchProduct();
-  }, [id, isEditMode, navigate]);
+  useEffect(() => {
+    if (isEditing) {
+      const fetchProduct = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/products/${id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (res.data.success) {
+            const p = res.data.data;
+            setFormData({
+              title: p.title,
+              brand: p.brand,
+              category: p.category,
+              price: p.price,
+              stock: p.stock,
+              description: p.description,
+              sizes: p.sizes?.join(', ') || '',
+              colors: p.colors?.join(', ') || '',
+              isActive: p.isActive,
+              featured: p.featured
+            });
+            setExistingImages(p.images || []);
+          }
+        } catch (error) {
+          toast.error('Failed to load product details');
+          navigate('/admin/products');
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchProduct();
+    }
+  }, [id, isEditing, navigate]);
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
@@ -74,252 +95,177 @@ export default function ProductForm() {
 
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
-    if (files.length > 5) {
-      toast.error('Maximum 5 images allowed');
+    
+    // Total max 5 images
+    if (newImages.length + files.length > 5) {
+      toast.error('Maximum 5 images allowed in total');
       return;
     }
-
-    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    for (const file of files) {
-      if (!validTypes.includes(file.type)) {
-        toast.error('Only JPEG, PNG, and WebP images are allowed');
-        return;
-      }
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('Each image must be less than 10MB');
-        return;
-      }
-    }
-
-    setImageFiles(files);
-    // Replace previews with newly selected files
-    setPreviewUrls(files.map(file => URL.createObjectURL(file)));
-    setExistingImages([]); // user is replacing images
+    
+    // We only preview new images. If editing, we typically replace existing or append.
+    // Our backend replaces images if req.files is present.
+    setNewImages(prev => [...prev, ...files]);
   };
 
-  const removeExistingImage = (index) => {
-    const updated = existingImages.filter((_, i) => i !== index);
-    setExistingImages(updated);
-    setPreviewUrls(updated);
+  const removeNewImage = (index) => {
+    setNewImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  // ── Step 3: Submit — create or update depending on mode ──────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-
     try {
-      if (isEditMode) {
-        // ── EDIT: send as JSON (images are optional; only include new ones)
-        const payload = {
-          title: formData.title,
-          description: formData.description,
-          category: formData.category,
-          brand: formData.brand,
-          price: Number(formData.price),
-          stock: Number(formData.stock),
-          featured: formData.featured,
-          sizes: formData.sizes.split(',').map(s => s.trim()).filter(Boolean),
-          colors: formData.colors.split(',').map(s => s.trim()).filter(Boolean),
-        };
+      setSubmitting(true);
+      const token = localStorage.getItem('token');
+      
+      const submitData = new FormData();
+      Object.keys(formData).forEach(key => submitData.append(key, formData[key]));
+      
+      newImages.forEach(img => {
+        submitData.append('images', img);
+      });
 
-
-
-        // If the admin uploaded new files, send them as multipart
-        if (imageFiles.length > 0) {
-          const data = new FormData();
-          Object.entries(payload).forEach(([key, val]) => {
-            if (Array.isArray(val)) {
-              val.forEach(v => data.append(key, v));
-            } else {
-              data.append(key, val);
-            }
-          });
-          imageFiles.forEach(file => data.append('images', file));
-
-          await api.patch(`/admin/products/${id}`, data, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-          });
-        } else {
-          // No new images — keep existing (backend ignores images field if absent)
-          await api.patch(`/admin/products/${id}`, payload);
-        }
-
-        toast.success('Product updated successfully!');
+      if (isEditing) {
+        await axios.put(`${import.meta.env.VITE_API_URL}/api/admin/products/${id}`, submitData, {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+        toast.success('Product updated successfully');
       } else {
-        // ── CREATE: multipart required for image upload
-        const data = new FormData();
-        Object.keys(formData).forEach(key => {
-          data.append(key, formData[key]);
+        await axios.post(`${import.meta.env.VITE_API_URL}/api/admin/products`, submitData, {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
         });
-        imageFiles.forEach(file => data.append('images', file));
-
-        await api.post('/admin/products', data, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
-
-        toast.success('Product created successfully!');
+        toast.success('Product created successfully');
       }
-
       navigate('/admin/products');
-    } catch (err) {
-      toast.error(err.response?.data?.message || `Failed to ${isEditMode ? 'update' : 'create'} product`);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Submission failed');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  // ── Loading skeleton while fetching ──────────────────────────────────────
-  if (fetchLoading) {
-    return (
-      <div className="max-w-4xl mx-auto pb-20 animate-pulse">
-        <div className="h-10 bg-luxury-gray/20 rounded w-1/3 mb-8" />
-        <div className="glass-card p-8 space-y-6">
-          {[1, 2, 3].map(i => <div key={i} className="h-12 bg-luxury-gray/10 rounded" />)}
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div className="p-8 text-luxury-gold">Loading...</div>;
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="max-w-4xl mx-auto pb-20">
-      {/* ── Step 4: Dynamic heading ── */}
+    <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center gap-4 mb-8">
-        <Link to="/admin/products" className="text-luxury-gray hover:text-luxury-gold transition-colors">
-          <FiArrowLeft size={20} />
-        </Link>
+        <button onClick={() => navigate('/admin/products')} className="p-2 text-luxury-gray hover:text-luxury-white transition-colors border border-luxury-gray/20 rounded">
+          <FiArrowLeft size={18} />
+        </button>
         <h1 className="text-3xl font-playfair text-luxury-white">
-          {isEditMode ? 'Edit Product' : 'Add New Product'}
+          {isEditing ? 'Edit Product' : 'Add New Product'}
         </h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
-        {/* ── Basic Information ── */}
-        <div className="glass-card p-8 border-luxury-gray/10 rounded-lg space-y-6">
-          <h2 className="text-xl font-playfair text-luxury-gold border-b border-luxury-gray/10 pb-4">Basic Information</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block font-poppins text-xs uppercase tracking-widest text-luxury-gray mb-2">Product Title *</label>
-              <input type="text" name="title" required minLength="3" maxLength="100" value={formData.title} onChange={handleChange} className="w-full bg-luxury-dark border border-luxury-gray/30 px-4 py-3 text-luxury-white focus:outline-none focus:border-luxury-gold transition-colors" />
-            </div>
-            <div>
-              <label className="block font-poppins text-xs uppercase tracking-widest text-luxury-gray mb-2">Brand</label>
-              <input type="text" name="brand" maxLength="50" value={formData.brand} onChange={handleChange} className="w-full bg-luxury-dark border border-luxury-gray/30 px-4 py-3 text-luxury-white focus:outline-none focus:border-luxury-gold transition-colors" />
-            </div>
+      <form onSubmit={handleSubmit} className="bg-luxury-secondary/30 border border-luxury-gray/10 p-8 flex flex-col gap-6">
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="flex flex-col gap-2">
+            <label className="text-xs uppercase tracking-wider text-luxury-gray">Title *</label>
+            <input required type="text" name="title" value={formData.title} onChange={handleChange} className="bg-luxury-dark border border-luxury-gray/20 text-luxury-white px-4 py-2 focus:border-luxury-gold outline-none" />
+          </div>
+          
+          <div className="flex flex-col gap-2">
+            <label className="text-xs uppercase tracking-wider text-luxury-gray">Brand</label>
+            <input type="text" name="brand" value={formData.brand} onChange={handleChange} className="bg-luxury-dark border border-luxury-gray/20 text-luxury-white px-4 py-2 focus:border-luxury-gold outline-none" />
           </div>
 
-          <div>
-            <label className="block font-poppins text-xs uppercase tracking-widest text-luxury-gray mb-2">Description *</label>
-            <textarea name="description" required minLength="20" maxLength="5000" rows="4" value={formData.description} onChange={handleChange} className="w-full bg-luxury-dark border border-luxury-gray/30 px-4 py-3 text-luxury-white focus:outline-none focus:border-luxury-gold transition-colors"></textarea>
-            <p className="text-luxury-gray text-xs mt-1 text-right">{formData.description.length}/5000</p>
-          </div>
-        </div>
-
-        {/* ── Pricing & Inventory ── */}
-        <div className="glass-card p-8 border-luxury-gray/10 rounded-lg space-y-6">
-          <h2 className="text-xl font-playfair text-luxury-gold border-b border-luxury-gray/10 pb-4">Pricing & Inventory</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block font-poppins text-xs uppercase tracking-widest text-luxury-gray mb-2">Price (₹) *</label>
-              <input type="number" name="price" required min="1" max="1000000" value={formData.price} onChange={handleChange} className="w-full bg-luxury-dark border border-luxury-gray/30 px-4 py-3 text-luxury-white focus:outline-none focus:border-luxury-gold transition-colors" />
-            </div>
-            <div>
-              <label className="block font-poppins text-xs uppercase tracking-widest text-luxury-gray mb-2">Stock Quantity *</label>
-              <input type="number" name="stock" required min="0" max="10000" value={formData.stock} onChange={handleChange} className="w-full bg-luxury-dark border border-luxury-gray/30 px-4 py-3 text-luxury-white focus:outline-none focus:border-luxury-gold transition-colors" />
-            </div>
-          </div>
-        </div>
-
-        {/* ── Variants & Classification ── */}
-        <div className="glass-card p-8 border-luxury-gray/10 rounded-lg space-y-6">
-          <h2 className="text-xl font-playfair text-luxury-gold border-b border-luxury-gray/10 pb-4">Variants & Classification</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <label className="block font-poppins text-xs uppercase tracking-widest text-luxury-gray mb-2">Category *</label>
-              <select name="category" value={formData.category} onChange={handleChange} className="w-full bg-luxury-dark border border-luxury-gray/30 px-4 py-3 text-luxury-white focus:outline-none focus:border-luxury-gold transition-colors">
-                <option value="Men">Men</option>
-                <option value="Women">Women</option>
-                <option value="Accessories">Accessories</option>
-                <option value="Kids">Kids</option>
-                <option value="Beauty">Beauty</option>
-              </select>
-            </div>
-            <div>
-              <label className="block font-poppins text-xs uppercase tracking-widest text-luxury-gray mb-2">Sizes (comma separated)</label>
-              <input type="text" name="sizes" placeholder="S, M, L, XL" value={formData.sizes} onChange={handleChange} className="w-full bg-luxury-dark border border-luxury-gray/30 px-4 py-3 text-luxury-white focus:outline-none focus:border-luxury-gold transition-colors" />
-            </div>
-            <div>
-              <label className="block font-poppins text-xs uppercase tracking-widest text-luxury-gray mb-2">Colors (comma separated)</label>
-              <input type="text" name="colors" placeholder="Black, White, Red" value={formData.colors} onChange={handleChange} className="w-full bg-luxury-dark border border-luxury-gray/30 px-4 py-3 text-luxury-white focus:outline-none focus:border-luxury-gold transition-colors" />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 pt-4">
-            <input type="checkbox" name="featured" id="featured" checked={formData.featured} onChange={handleChange} className="w-5 h-5 accent-luxury-gold" />
-            <label htmlFor="featured" className="font-inter text-luxury-white cursor-pointer">Mark as Featured Product</label>
-          </div>
-        </div>
-
-        {/* ── Product Images ── */}
-        <div className="glass-card p-8 border-luxury-gray/10 rounded-lg space-y-6">
-          <h2 className="text-xl font-playfair text-luxury-gold border-b border-luxury-gray/10 pb-4">
-            Product Images
-            {isEditMode && <span className="text-luxury-gray text-sm font-inter font-normal ml-3">(Upload new images to replace existing)</span>}
-          </h2>
-
-          <div className="border-2 border-dashed border-luxury-gray/30 rounded-lg p-10 text-center hover:border-luxury-gold transition-colors cursor-pointer relative">
-            <input
-              type="file"
-              multiple
-              accept="image/jpeg,image/png,image/webp"
-              onChange={handleImageChange}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            />
-            <div className="flex flex-col items-center justify-center">
-              <FiUploadCloud className="text-luxury-gray text-4xl mb-4" />
-              <p className="text-luxury-white font-inter">Drag & drop images here or click to browse</p>
-              <p className="text-luxury-gray text-sm mt-2">Max 5 images · JPEG / PNG / WebP · Max 10MB each</p>
-            </div>
-          </div>
-
-          {/* Image previews */}
-          {previewUrls.length > 0 && (
-            <div className="grid grid-cols-5 gap-4 mt-6">
-              {previewUrls.map((url, i) => (
-                <div key={i} className="relative aspect-square bg-luxury-dark rounded overflow-hidden border border-luxury-gray/20 group">
-                  <img src={url} alt={`Preview ${i}`} className="w-full h-full object-cover" />
-                  <div className="absolute top-1 left-1 bg-black/70 px-2 py-1 text-[10px] rounded text-white">
-                    {i === 0 ? 'Primary' : `#${i + 1}`}
-                  </div>
-                  {/* Remove button — only for existing images (not new uploads) */}
-                  {existingImages[i] && (
-                    <button
-                      type="button"
-                      onClick={() => removeExistingImage(i)}
-                      className="absolute top-1 right-1 bg-red-600/80 hover:bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <FiX size={12} />
-                    </button>
-                  )}
-                </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-xs uppercase tracking-wider text-luxury-gray">Category *</label>
+            <select required name="category" value={formData.category} onChange={handleChange} className="bg-luxury-dark border border-luxury-gray/20 text-luxury-white px-4 py-2 focus:border-luxury-gold outline-none">
+              <option value="" disabled>Select Category</option>
+              {categories.map(cat => (
+                <option key={cat._id} value={cat.name}>{cat.name}</option>
               ))}
-            </div>
-          )}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-xs uppercase tracking-wider text-luxury-gray">Price (₹) *</label>
+            <input required type="number" name="price" value={formData.price} onChange={handleChange} className="bg-luxury-dark border border-luxury-gray/20 text-luxury-white px-4 py-2 focus:border-luxury-gold outline-none" min="0" />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-xs uppercase tracking-wider text-luxury-gray">Stock *</label>
+            <input required type="number" name="stock" value={formData.stock} onChange={handleChange} className="bg-luxury-dark border border-luxury-gray/20 text-luxury-white px-4 py-2 focus:border-luxury-gold outline-none" min="0" />
+          </div>
         </div>
 
-        {/* ── Submit ── */}
-        <div className="flex items-center justify-end gap-4 pt-2">
-          <Link to="/admin/products" className="text-luxury-gray hover:text-luxury-white font-poppins uppercase tracking-widest text-xs transition-colors py-4 px-6">
-            Cancel
-          </Link>
-          <button type="submit" disabled={loading} className="btn-primary py-4 px-12 text-sm disabled:opacity-50">
-            {loading
-              ? (isEditMode ? 'Saving...' : 'Publishing...')
-              : (isEditMode ? 'Save Changes' : 'Publish Product')}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs uppercase tracking-wider text-luxury-gray">Description *</label>
+          <textarea required name="description" value={formData.description} onChange={handleChange} rows="5" className="bg-luxury-dark border border-luxury-gray/20 text-luxury-white px-4 py-2 focus:border-luxury-gold outline-none"></textarea>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="flex flex-col gap-2">
+            <label className="text-xs uppercase tracking-wider text-luxury-gray">Sizes (comma separated)</label>
+            <input type="text" name="sizes" value={formData.sizes} onChange={handleChange} placeholder="e.g. S, M, L, XL" className="bg-luxury-dark border border-luxury-gray/20 text-luxury-white px-4 py-2 focus:border-luxury-gold outline-none" />
+          </div>
+          
+          <div className="flex flex-col gap-2">
+            <label className="text-xs uppercase tracking-wider text-luxury-gray">Colors (comma separated)</label>
+            <input type="text" name="colors" value={formData.colors} onChange={handleChange} placeholder="e.g. Black, White, Red" className="bg-luxury-dark border border-luxury-gray/20 text-luxury-white px-4 py-2 focus:border-luxury-gold outline-none" />
+          </div>
+        </div>
+
+        <div className="flex gap-8">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" name="isActive" checked={formData.isActive} onChange={handleChange} className="accent-luxury-gold w-4 h-4" />
+            <span className="text-sm text-luxury-white">Active Product</span>
+          </label>
+
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" name="featured" checked={formData.featured} onChange={handleChange} className="accent-luxury-gold w-4 h-4" />
+            <span className="text-sm text-luxury-white">Featured Product</span>
+          </label>
+        </div>
+
+        <div className="flex flex-col gap-4 border-t border-luxury-gray/10 pt-6">
+          <label className="text-xs uppercase tracking-wider text-luxury-gray">Product Images (Max 5)</label>
+          
+          <div className="flex flex-wrap gap-4">
+            {/* Existing Images Display */}
+            {isEditing && existingImages.length > 0 && newImages.length === 0 && (
+              <div className="w-full text-xs text-luxury-gray mb-2">
+                Currently showing {existingImages.length} saved images. Uploading new images will replace them entirely.
+              </div>
+            )}
+            
+            {newImages.length === 0 && existingImages.map((url, i) => (
+              <div key={i} className="relative w-24 h-24 border border-luxury-gray/20">
+                <img src={url} alt="Current product" className="w-full h-full object-cover" />
+              </div>
+            ))}
+
+            {/* New Images Preview */}
+            {newImages.map((file, i) => (
+              <div key={i} className="relative w-24 h-24 border border-luxury-gold/50">
+                <img src={URL.createObjectURL(file)} alt="New upload" className="w-full h-full object-cover" />
+                <button type="button" onClick={() => removeNewImage(i)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors">
+                  <FiX size={12} />
+                </button>
+              </div>
+            ))}
+
+            {/* Upload Button */}
+            {newImages.length < 5 && (
+              <label className="w-24 h-24 border-2 border-dashed border-luxury-gray/30 flex flex-col items-center justify-center text-luxury-gray hover:border-luxury-gold hover:text-luxury-gold transition-colors cursor-pointer">
+                <FiUploadCloud size={24} />
+                <span className="text-[10px] mt-1 uppercase">Upload</span>
+                <input type="file" multiple accept="image/*" onChange={handleImageChange} className="hidden" />
+              </label>
+            )}
+          </div>
+        </div>
+
+        <div className="flex justify-end mt-4">
+          <button type="submit" disabled={submitting} className="bg-luxury-gold text-luxury-dark px-8 py-3 font-medium hover:bg-white transition-colors disabled:opacity-50">
+            {submitting ? 'Saving...' : isEditing ? 'Update Product' : 'Create Product'}
           </button>
         </div>
       </form>

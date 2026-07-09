@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { FiHome, FiBox, FiUploadCloud, FiLogOut } from 'react-icons/fi';
+import { FiHome, FiBox, FiUploadCloud, FiLogOut, FiList } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 
 export default function AdminLayout({ handleLogout }) {
@@ -9,9 +9,10 @@ export default function AdminLayout({ handleLogout }) {
   const links = [
     { path: '/admin', label: 'Dashboard', icon: FiHome, end: true },
     { path: '/admin/orders', label: 'Orders', icon: FiBox },
-    { path: '/admin/customers', label: 'Customers', icon: FiBox },
+    { path: '/admin/users', label: 'Customers', icon: FiBox },
     { path: '/admin/products', label: 'Products', icon: FiBox },
-    { path: '/admin/products/new', label: 'Add Product', icon: FiBox }
+    { path: '/admin/products/new', label: 'Add Product', icon: FiBox },
+    { path: '/admin/categories', label: 'Categories', icon: FiList }
   ];
 
   return (

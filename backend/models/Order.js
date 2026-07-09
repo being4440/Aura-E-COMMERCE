@@ -47,9 +47,18 @@ const OrderSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  paymentMethod: {
+    type: String,
+    enum: ['stripe', 'cod', 'Cash on Delivery', 'Credit Card', 'Debit Card', 'UPI'],
+    default: 'cod'
+  },
+  stripeSessionId: {
+    type: String,
+    required: false
+  },
   paymentStatus: {
     type: String,
-    enum: ['pending', 'completed', 'failed'],
+    enum: ['pending', 'completed', 'paid', 'failed'],
     default: 'pending'
   },
   createdAt: {
@@ -68,7 +77,31 @@ const OrderSchema = new mongoose.Schema({
     message: {
       type: String
     }
-  }]
+  }],
+  returnStatus: {
+    type: String,
+    enum: ['None', 'Return Requested', 'Approved', 'Rejected', 'Refund Processing', 'Refund Processed', 'Refund Failed'],
+    default: 'None'
+  },
+  statusHistory: [{
+    fromStatus: String,
+    toStatus: String,
+    changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    changedAt: { type: Date, default: Date.now },
+    note: String
+  }],
+  cancelReason: { type: String },
+  returnReason: { type: String },
+  invoiceNumber: { type: String, unique: true, sparse: true },
+  invoiceGeneratedAt: { type: Date },
+  stripePaymentIntentId: { type: String }
 });
+
+// Indexes for server-side search and filtering performance
+OrderSchema.index({ createdAt: -1 });
+OrderSchema.index({ status: 1 });
+OrderSchema.index({ paymentMethod: 1 });
+OrderSchema.index({ returnStatus: 1 });
+OrderSchema.index({ invoiceNumber: 1 });
 
 module.exports = mongoose.model('Order', OrderSchema);

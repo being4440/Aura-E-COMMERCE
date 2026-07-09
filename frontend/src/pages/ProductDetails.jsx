@@ -145,6 +145,10 @@ export default function ProductDetails() {
       
       const prodRes = await getProductByIdAPI(id);
       setProduct(prodRes.data.data.product);
+
+      // Clear the form fields after successful submission
+      setRating(0);
+      setComment('');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Error submitting review');
     }
@@ -351,7 +355,9 @@ export default function ProductDetails() {
 
             {/* Reviews Section */}
             <div className="border-t border-luxury-gray/20 pt-8 mt-8">
-              <h3 className="text-2xl font-playfair text-luxury-white mb-6">Customer Reviews</h3>
+              <h3 className="text-2xl font-playfair text-luxury-white mb-6">
+                Customer Reviews <span className="text-luxury-gray text-lg ml-2">({reviews.length})</span>
+              </h3>
               
               {user ? (
                 <form onSubmit={handleReviewSubmit} className="mb-10 bg-[#111] p-6 border border-luxury-gray/20">

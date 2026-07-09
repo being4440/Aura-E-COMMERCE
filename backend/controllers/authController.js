@@ -99,6 +99,12 @@ exports.login = async (req, res) => {
       return res.status(403).json({ message: 'Access denied. Admins must login via the admin portal.' });
     }
 
+    if (user.isBlocked) {
+      return res.status(403).json({ 
+        message: `Your account has been blocked. Reason: ${user.blockedReason || 'Admin Action'}` 
+      });
+    }
+
     // 3. Verify password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {

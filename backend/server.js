@@ -13,6 +13,9 @@ app.use(cors({
   origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'], // Allow frontend Vite dev server origins
   credentials: true
 }));
+// Webhook must be parsed as raw body before express.json() is applied
+app.use('/api/payment/webhook', express.raw({ type: 'application/json' }), require('./routes/paymentWebhookRoute'));
+
 app.use(express.json());
 
 // Database Connection Setup
@@ -26,7 +29,15 @@ app.use('/api/products/:productId/reviews', require('./routes/reviewRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes'));
 app.use('/api/wishlist', require('./routes/wishlistRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
+app.use('/api/admin/orders', require('./routes/adminOrderRoutes'));
+app.use('/api/admin/products', require('./routes/adminProductRoutes'));
+app.use('/api/admin/categories', require('./routes/adminCategoryRoutes'));
+app.use('/api/admin/users', require('./routes/adminUserRoutes'));
+app.use('/api/admin/reviews', require('./routes/adminReviewRoutes'));
+app.use('/api/admin/dashboard', require('./routes/adminDashboardRoutes'));
+app.use('/api/admin/analytics', require('./routes/adminAnalyticsRoutes'));
 app.use('/api/cart', require('./routes/cart.routes'));
+app.use('/api/payment', require('./routes/paymentRoutes'));
 
 // Base route for API check
 app.get('/', (req, res) => {

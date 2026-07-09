@@ -96,8 +96,13 @@ export default function ProductCard({ product, index = 0 }) {
       </div>
 
       {/* Content */}
-      <div className="p-6 flex flex-col flex-grow justify-between">
-        <div>
+      <div className="p-6 flex flex-col flex-grow justify-between items-center text-center">
+        <div className="flex flex-col items-center">
+          {product.brand && (
+            <p className="text-[10px] md:text-xs font-poppins text-luxury-gray uppercase tracking-wider mb-1">
+              {product.brand}
+            </p>
+          )}
           <Link to={`/products/${product._id}`}>
             <h3 className="text-xl font-playfair text-luxury-white mb-2 line-clamp-1 group-hover:text-luxury-gold transition-colors">
               {product.title}
@@ -106,13 +111,13 @@ export default function ProductCard({ product, index = 0 }) {
           <p className="text-sm font-inter text-luxury-gray line-clamp-2 mb-3">
             {product.description}
           </p>
-          <div className="flex items-center gap-1 mb-2">
+          <div className="flex items-center justify-center gap-1 mb-2">
             <FiStar className="text-luxury-gold fill-current" size={14} />
             <span className="text-xs font-inter text-luxury-white">{product.rating || 'New'}</span>
           </div>
         </div>
         
-        <div className="flex items-center justify-between mt-auto pt-4 border-t border-luxury-gray/10">
+        <div className="flex items-center justify-center w-full mt-auto pt-4 border-t border-luxury-gray/10">
           <div className="flex items-center gap-2">
               <span className="text-lg font-inter text-luxury-white tracking-wide">
                 ₹{product.price?.toLocaleString()}

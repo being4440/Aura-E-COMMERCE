@@ -20,8 +20,7 @@ const ProductSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    required: true,
-    enum: ['Men', 'Women', 'Kids', 'Accessories']
+    required: true
   },
   brand: {
     type: String,
@@ -71,9 +70,9 @@ const ProductSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  rating:{
-    type:Number,
-    default:0
+  rating: {
+    type: Number,
+    default: 0
   },
   numReviews: {
     type: Number,
@@ -93,23 +92,23 @@ const ProductSchema = new mongoose.Schema({
 });
 
 // Virtual for available stock
-ProductSchema.virtual('availableStock').get(function() {
+ProductSchema.virtual('availableStock').get(function () {
   return this.stock - this.reservedStock;
 });
 
 
 
 // Methods
-ProductSchema.methods.isInStock = function() {
+ProductSchema.methods.isInStock = function () {
   return this.availableStock > 0;
 };
 
-ProductSchema.methods.canAddToCart = function(qty) {
+ProductSchema.methods.canAddToCart = function (qty) {
   return this.availableStock >= qty;
 };
 
 // Pre-save hook
-ProductSchema.pre('save', function(next) {
+ProductSchema.pre('save', function (next) {
   if (this.isModified('stock')) {
     this.lastUpdated = Date.now();
   }
@@ -117,7 +116,7 @@ ProductSchema.pre('save', function(next) {
 });
 
 // Static methods
-ProductSchema.statics.deductStock = async function(productId, quantity) {
+ProductSchema.statics.deductStock = async function (productId, quantity) {
   const product = await this.findByIdAndUpdate(
     productId,
     { $inc: { stock: -quantity, sold: +quantity } },
@@ -127,7 +126,7 @@ ProductSchema.statics.deductStock = async function(productId, quantity) {
   return product;
 };
 
-ProductSchema.statics.restoreStock = async function(productId, quantity) {
+ProductSchema.statics.restoreStock = async function (productId, quantity) {
   const product = await this.findByIdAndUpdate(
     productId,
     { $inc: { stock: +quantity, sold: -quantity } },

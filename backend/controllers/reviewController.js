@@ -2,16 +2,29 @@ const Review = require('../models/Review');
 const Product = require('../models/Product');
 const mongoose = require('mongoose');
 
-const updateProductRating = async (productId) => {
-  const reviews = await Review.find({ product: productId });
-  const numReviews = reviews.length;
-  const rating = numReviews === 0 
-    ? 0 
-    : reviews.reduce((acc, item) => item.rating + acc, 0) / numReviews;
+exports.updateProductRating = async (productId) => {
+  const result = await Review.aggregate([
+    { 
+      $match: { 
+        product: new mongoose.Types.ObjectId(productId),
+        isHidden: { $ne: true }
+      } 
+    },
+    { 
+      $group: { 
+        _id: '$product', 
+        avgRating: { $avg: '$rating' }, 
+        numReviews: { $sum: 1 } 
+      } 
+    }
+  ]);
+
+  const stats = result.length > 0 ? result[0] : { avgRating: 0, numReviews: 0 };
+  const finalRating = Number((stats.avgRating || 0).toFixed(1));
 
   await Product.findByIdAndUpdate(productId, {
-    rating: Number(rating.toFixed(1)),
-    numReviews
+    rating: finalRating,
+    numReviews: stats.numReviews
   });
 };
 
@@ -23,7 +36,7 @@ exports.getProductReviews = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.productId)) {
       return res.status(400).json({ success: false, message: 'Invalid product ID' });
     }
-    const reviews = await Review.find({ product: req.params.productId }).populate('user', 'username name');
+    const reviews = await Review.find({ product: req.params.productId, isHidden: { $ne: true } }).populate('user', 'username name');
     res.json({ success: true, reviews });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -59,7 +72,7 @@ exports.addReview = async (req, res) => {
     });
 
     await review.save();
-    await updateProductRating(productId);
+    await exports.updateProductRating(productId);
     
     res.status(201).json({ success: true, review });
   } catch (err) {
@@ -95,7 +108,7 @@ exports.updateReview = async (req, res) => {
     review.comment = comment || review.comment;
     await review.save();
 
-    await updateProductRating(productId);
+    await exports.updateProductRating(productId);
 
     res.json({ success: true, review });
   } catch (err) {
@@ -127,7 +140,7 @@ exports.deleteReview = async (req, res) => {
     }
 
     await review.deleteOne();
-    await updateProductRating(productId);
+    await exports.updateProductRating(productId);
 
     res.json({ success: true, message: 'Review removed' });
   } catch (err) {

@@ -25,6 +25,13 @@ import OrdersPage from './pages/OrdersPage.jsx';
 import OrderConfirmation from './pages/OrderConfirmation.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import InfoPage from './components/InfoPage.jsx';
+import AdminOrdersList from './pages/admin/AdminOrdersList.jsx';
+import AdminOrderDetail from './pages/admin/AdminOrderDetail.jsx';
+import AdminCategoriesList from './pages/admin/AdminCategoriesList.jsx';
+import AdminUsersList from './pages/admin/AdminUsersList.jsx';
+import AdminUserDetail from './pages/admin/AdminUserDetail.jsx';
+import AdminReviewsList from './pages/admin/AdminReviewsList.jsx';
+import AdminAnalytics from './pages/admin/AdminAnalytics.jsx';
 
 const AppInit = () => {
   const dispatch = useDispatch();
@@ -69,9 +76,14 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/admin/login" element={<AdminLogin handleLoginSuccess={handleLoginSuccess} />} />
             <Route path="/admin" element={<AdminLayout handleLogout={handleLogout} />}>
-              <Route index element={<AdminDashboard tab="dashboard" />} />
-              <Route path="orders" element={<AdminDashboard tab="orders" />} />
-              <Route path="customers" element={<AdminDashboard tab="customers" />} />
+              <Route index element={<AdminDashboard />} />
+              <Route path="analytics" element={<AdminAnalytics />} />
+              <Route path="orders" element={<AdminOrdersList />} />
+              <Route path="orders/:id" element={<AdminOrderDetail />} />
+              <Route path="users" element={<AdminUsersList />} />
+              <Route path="users/:id" element={<AdminUserDetail />} />
+              <Route path="reviews" element={<AdminReviewsList />} />
+              <Route path="categories" element={<AdminCategoriesList />} />
               <Route path="products" element={<ProductsManagement />} />
               <Route path="products/new" element={<ProductForm />} />
               <Route path="products/edit/:id" element={<ProductForm />} />

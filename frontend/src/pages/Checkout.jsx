@@ -19,7 +19,7 @@ const Checkout = () => {
     city: currentUser?.address?.city || '',
     state: currentUser?.address?.state || ''
   });
-  const [paymentInfo, setPaymentInfo] = useState('Credit Card');
+  const [paymentInfo, setPaymentInfo] = useState('Stripe');
   const [isProcessing, setIsProcessing] = useState(false);
 
   const shipping = totalPrice > 499 || totalPrice === 0 ? 0 : 49;
@@ -37,7 +37,6 @@ const Checkout = () => {
 
     try {
       setIsProcessing(true);
-      const currentUser = JSON.parse(localStorage.getItem('user'));
       
       const orderData = {
         items: items.map(item => ({
@@ -50,13 +49,27 @@ const Checkout = () => {
         paymentInfo,
       };
 
-      const response = await api.post('/orders', orderData);
-      const savedOrder = response.data.data;
-      await dispatch(clearCart()).unwrap();
-      navigate(`/order-confirmation/${savedOrder._id}`);
+      if (paymentInfo === 'Stripe') {
+        // Stripe flow
+        const response = await api.post('/payment/create-checkout-session', {
+          shippingAddress: address
+        });
+        
+        if (response.data.url) {
+          window.location.href = response.data.url;
+        } else {
+          throw new Error('Failed to create checkout session');
+        }
+      } else {
+        // COD flow
+        const response = await api.post('/orders', orderData);
+        const savedOrder = response.data.data;
+        await dispatch(clearCart()).unwrap();
+        navigate(`/order-confirmation/${savedOrder._id}`);
+      }
     } catch (err) {
       console.error('Checkout error:', err);
-      toast.error(err.response?.data?.message || 'Failed to place order. Please try again.');
+      toast.error(err.response?.data?.message || err.message || 'Failed to process checkout. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -95,16 +108,31 @@ const Checkout = () => {
 
           <div>
             <label className="block text-gray-400 mb-2 font-medium">Payment Method</label>
-            <select 
-              value={paymentInfo}
-              onChange={(e) => setPaymentInfo(e.target.value)}
-              className="w-full bg-gray-800 text-white border border-gray-700 rounded-lg p-3 focus:outline-none focus:border-blue-500"
-            >
-              <option value="Credit Card">Credit Card</option>
-              <option value="Debit Card">Debit Card</option>
-              <option value="UPI">UPI</option>
-              <option value="Cash on Delivery">Cash on Delivery</option>
-            </select>
+            <div className="flex flex-col sm:flex-row gap-4 mt-2">
+              <label className={`flex-1 flex items-center justify-center p-4 border rounded-lg cursor-pointer transition-colors ${paymentInfo === 'Stripe' ? 'border-blue-500 bg-blue-500/10 text-blue-400' : 'border-gray-700 bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+                <input 
+                  type="radio" 
+                  name="paymentMethod" 
+                  value="Stripe" 
+                  checked={paymentInfo === 'Stripe'} 
+                  onChange={(e) => setPaymentInfo(e.target.value)} 
+                  className="hidden" 
+                />
+                <span className="font-semibold">Stripe (Card Payment)</span>
+              </label>
+              
+              <label className={`flex-1 flex items-center justify-center p-4 border rounded-lg cursor-pointer transition-colors ${paymentInfo === 'Cash on Delivery' ? 'border-blue-500 bg-blue-500/10 text-blue-400' : 'border-gray-700 bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+                <input 
+                  type="radio" 
+                  name="paymentMethod" 
+                  value="Cash on Delivery" 
+                  checked={paymentInfo === 'Cash on Delivery'} 
+                  onChange={(e) => setPaymentInfo(e.target.value)} 
+                  className="hidden" 
+                />
+                <span className="font-semibold">Cash on Delivery (COD)</span>
+              </label>
+            </div>
           </div>
 
           <div className="border-t border-gray-700 pt-6 mt-8">
@@ -128,7 +156,7 @@ const Checkout = () => {
                 isProcessing ? 'bg-blue-800 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
               }`}
             >
-              {isProcessing ? 'Processing Order...' : 'Place Order'}
+              {isProcessing ? (paymentInfo === 'Stripe' ? 'Redirecting to Stripe...' : 'Processing Order...') : (paymentInfo === 'Stripe' ? 'Pay Now' : 'Place Order')}
             </button>
           </div>
         </form>

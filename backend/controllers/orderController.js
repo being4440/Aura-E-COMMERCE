@@ -2,6 +2,7 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Cart = require('../models/Cart');
 const mongoose = require('mongoose');
+const PDFDocument = require('pdfkit');
 
 exports.createOrder = async (req, res) => {
   try {
@@ -101,11 +102,18 @@ exports.createOrder = async (req, res) => {
       paymentInfo,
       paymentStatus: paymentStatusResolved,
       totalAmount: calculatedTotalAmount,
-      status: 'processing',
+      status: 'pending',
       statusTimeline: [{
-        status: 'processing',
+        status: 'pending',
         timestamp: new Date(),
         message: 'Order placed successfully'
+      }],
+      statusHistory: [{
+        fromStatus: null,
+        toStatus: 'pending',
+        changedBy: null,
+        changedAt: new Date(),
+        note: 'Order Created'
       }]
     });
 
@@ -186,10 +194,16 @@ exports.getOrders = async (req, res) => {
 
 exports.getOrderById = async (req, res) => {
   try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({ success: false, message: 'Invalid order ID' });
+    const isValidObjectId = mongoose.Types.ObjectId.isValid(req.params.id);
+    let order;
+    
+    if (isValidObjectId) {
+      order = await Order.findById(req.params.id).populate('items.productId', 'title images');
+    } else {
+      // If not a valid ObjectId, assume it might be a Stripe session ID
+      order = await Order.findOne({ stripeSessionId: req.params.id }).populate('items.productId', 'title images');
     }
-    const order = await Order.findById(req.params.id).populate('items.productId', 'title images');
+    
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
@@ -201,5 +215,129 @@ exports.getOrderById = async (req, res) => {
     res.status(200).json({ success: true, data: order });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Download Invoice PDF for User
+exports.downloadInvoice = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id).populate('user', 'username email mobile');
+    
+    if (!order) return res.status(404).send('Order not found');
+    
+    // Authorization check: User can only download their own invoice
+    if (order.user._id.toString() !== req.user.id) {
+      return res.status(403).send('Access denied. You do not own this order.');
+    }
+
+    if (!order.invoiceNumber) {
+      const currentYear = new Date().getFullYear();
+      const Counter = require('../models/Counter');
+      const counter = await Counter.findByIdAndUpdate(
+        { _id: `invoice_${currentYear}` },
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true }
+      );
+      const seqString = counter.seq.toString().padStart(6, '0');
+      order.invoiceNumber = `INV-${currentYear}-${seqString}`;
+      order.invoiceGeneratedAt = new Date();
+      await order.save();
+    }
+
+    const doc = new PDFDocument({ margin: 50 });
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=Invoice-${order.invoiceNumber}.pdf`);
+    
+    doc.pipe(res);
+
+    // Header
+    doc.fontSize(20).text('AURA', { align: 'right' });
+    doc.fontSize(10).text('CRAFTED FOR TIMELESS ELEGANCE', { align: 'right' });
+    doc.moveDown();
+    
+    doc.fontSize(20).text('TAX INVOICE', { align: 'left' });
+    doc.moveDown();
+
+    // Invoice Info
+    doc.fontSize(10).text(`Invoice Number: ${order.invoiceNumber}`);
+    doc.text(`Invoice Date: ${new Date(order.invoiceGeneratedAt).toLocaleDateString()}`);
+    doc.text(`Order ID: ${order._id}`);
+    doc.text(`Order Date: ${new Date(order.createdAt).toLocaleDateString()}`);
+    doc.text(`Payment Method: ${order.paymentMethod.toUpperCase()}`);
+    doc.text(`Payment Status: ${order.paymentStatus.toUpperCase()}`);
+    doc.moveDown();
+
+    // Addresses
+    const yPos = doc.y;
+    doc.text('Billed To:', 50, yPos);
+    doc.text(order.user ? order.user.username : 'Guest', 50, yPos + 15);
+    if (order.user) doc.text(order.user.email, 50, yPos + 30);
+    
+    doc.text('Shipped To:', 300, yPos);
+    const addr = order.shippingAddress;
+    doc.text(addr.fullName, 300, yPos + 15);
+    doc.text(`${addr.street}`, 300, yPos + 30);
+    doc.text(`${addr.city}, ${addr.state} - ${addr.pincode}`, 300, yPos + 45);
+    doc.text(`Phone: ${addr.mobile}`, 300, yPos + 60);
+    
+    doc.moveDown(5);
+
+    // Table Header
+    const tableTop = doc.y;
+    doc.font('Helvetica-Bold');
+    doc.text('Item', 50, tableTop);
+    doc.text('Qty', 300, tableTop);
+    doc.text('Unit Price', 380, tableTop);
+    doc.text('Total', 480, tableTop);
+    doc.moveTo(50, tableTop + 15).lineTo(550, tableTop + 15).stroke();
+    
+    doc.font('Helvetica');
+    let itemY = tableTop + 25;
+
+    let subtotal = 0;
+    
+    for (const item of order.items) {
+      const product = await Product.findById(item.productId);
+      const title = product ? product.title : 'Deleted Product';
+      const itemTotal = item.quantity * item.price;
+      subtotal += itemTotal;
+
+      doc.text(title, 50, itemY, { width: 240 });
+      doc.text(item.quantity.toString(), 300, itemY);
+      doc.text(`Rs. ${item.price.toLocaleString()}`, 380, itemY);
+      doc.text(`Rs. ${itemTotal.toLocaleString()}`, 480, itemY);
+      
+      itemY += 20;
+    }
+
+    doc.moveTo(50, itemY).lineTo(550, itemY).stroke();
+    itemY += 15;
+
+    // Totals
+    const shippingCharge = subtotal > 499 ? 0 : 49; 
+    const grandTotal = order.totalAmount;
+    
+    doc.text('Subtotal:', 380, itemY);
+    doc.text(`Rs. ${subtotal.toLocaleString()}`, 480, itemY);
+    itemY += 20;
+    
+    doc.text('Shipping:', 380, itemY);
+    doc.text(`Rs. ${shippingCharge.toLocaleString()}`, 480, itemY);
+    itemY += 20;
+    
+    doc.font('Helvetica-Bold');
+    doc.text('Grand Total:', 380, itemY);
+    doc.text(`Rs. ${grandTotal.toLocaleString()}`, 480, itemY);
+
+    // Footer
+    doc.moveDown(4);
+    doc.font('Helvetica').fontSize(10).text('Thank you for shopping with AURA!', { align: 'center' });
+
+    doc.end();
+
+  } catch (error) {
+    console.error('Invoice Generation Error:', error);
+    res.status(500).send('Error generating invoice');
   }
 };

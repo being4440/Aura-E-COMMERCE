@@ -22,6 +22,13 @@ const ReviewSchema = new mongoose.Schema({
     required: true,
     maxlength: 500
   },
+  isHidden: {
+    type: Boolean,
+    default: false
+  },
+  flaggedReason: {
+    type: String
+  },
   createdAt: {
     type: Date,
     default: Date.now

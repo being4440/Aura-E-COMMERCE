@@ -8,20 +8,32 @@ const OrderConfirmation = () => {
   const { id } = useParams();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRIES = 5;
 
   useEffect(() => {
+    let timeoutId;
     const fetchOrder = async () => {
       try {
         const { data } = await api.get(`/orders/${id}`);
         setOrder(data.data);
-      } catch (err) {
-        console.error('Failed to fetch order', err);
-      } finally {
         setLoading(false);
+      } catch (err) {
+        // If it's a Stripe session ID and order not found, poll a few times
+        if (err.response?.status === 404 && id?.startsWith('cs_') && retryCount < MAX_RETRIES) {
+          timeoutId = setTimeout(() => {
+            setRetryCount(prev => prev + 1);
+          }, 2000);
+        } else {
+          console.error('Failed to fetch order', err);
+          setLoading(false);
+        }
       }
     };
     fetchOrder();
-  }, [id]);
+    
+    return () => clearTimeout(timeoutId);
+  }, [id, retryCount]);
 
   if (loading) {
     return (
@@ -109,6 +121,14 @@ const OrderConfirmation = () => {
           >
             View All Orders <FiArrowRight />
           </Link>
+          <a 
+            href={`${import.meta.env.VITE_API_URL}/api/orders/${order._id}/invoice?token=${localStorage.getItem('token')}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center py-4 px-8 border border-luxury-gray/30 text-luxury-white hover:border-luxury-gold hover:text-luxury-gold font-poppins uppercase tracking-widest text-xs transition-all duration-300"
+          >
+            Download Invoice
+          </a>
           <Link 
             to="/"
             className="flex items-center justify-center py-4 px-8 border border-luxury-gray/30 text-luxury-white hover:border-luxury-gold hover:text-luxury-gold font-poppins uppercase tracking-widest text-xs transition-all duration-300"

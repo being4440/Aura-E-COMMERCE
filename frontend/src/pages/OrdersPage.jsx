@@ -152,6 +152,15 @@ const OrdersPage = () => {
                         Cancel Order
                       </button>
                     )}
+
+                    <a
+                      href={`${import.meta.env.VITE_API_URL}/api/orders/${order._id}/invoice?token=${localStorage.getItem('token')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] font-poppins uppercase tracking-widest text-luxury-gold hover:text-luxury-white border border-luxury-gold/30 hover:border-luxury-gold/60 px-3 py-1.5 rounded transition-all duration-200"
+                    >
+                      Download Invoice
+                    </a>
                   </div>
                 </div>
 
