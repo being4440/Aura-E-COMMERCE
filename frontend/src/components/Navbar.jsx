@@ -47,18 +47,18 @@ const Navbar = ({ user, handleLogout }) => {
           : 'bg-transparent border-transparent py-6'
           }`}
       >
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 grid grid-cols-3 items-center">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 grid grid-cols-[1fr_auto_1fr] items-center">
 
-          {/* Mobile Menu Button */}
+          {/* Mobile Menu Button (Col 1 on mobile) */}
           <button
-            className="lg:hidden text-luxury-white hover:text-luxury-gold transition-colors"
+            className="lg:hidden text-luxury-white hover:text-luxury-gold transition-colors justify-self-start"
             onClick={() => setMobileMenuOpen(true)}
           >
             <FiMenu className="w-6 h-6" />
           </button>
 
-          {/* Desktop Links */}
-          <div className="hidden lg:flex items-center gap-6 justify-start">
+          {/* Desktop Links (Col 1 on desktop) */}
+          <div className="hidden lg:flex items-center gap-6 justify-self-start">
             {navLinks.slice(0, 1).map((link) => (
               <Link
                 key={link.name}
@@ -70,15 +70,15 @@ const Navbar = ({ user, handleLogout }) => {
             ))}
           </div>
 
-          {/* Logo */}
+          {/* Logo (Col 2) */}
           <div className="flex justify-center">
             <Link to="/" className="text-4xl font-playfair tracking-[0.3em] text-luxury-white hover:text-luxury-gold transition-colors">
               AURA
             </Link>
           </div>
 
-          {/* Desktop Right Links & Icons */}
-          <div className="flex items-center space-x-2">
+          {/* Desktop Right Links & Icons (Col 3) */}
+          <div className="flex items-center justify-end space-x-2">
             <div className="hidden lg:flex items-center space-x-4 mr-4">
               {navLinks.slice(1).map((link) => (
                 <Link

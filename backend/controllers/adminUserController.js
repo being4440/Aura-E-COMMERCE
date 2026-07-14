@@ -1,168 +1,201 @@
 const User = require('../models/User');
 const Order = require('../models/Order');
 const Wishlist = require('../models/Wishlist');
+const mongoose = require('mongoose');
+const asyncHandler = require('../middleware/asyncHandler');
 
 // @desc    Get all users (paginated, searchable, filterable)
-exports.getUsers = async (req, res) => {
-  try {
-    const { 
-      page = 1, 
-      limit = 10, 
-      search = '', 
-      status, // 'active', 'blocked'
-      sortBy = 'createdAt', 
-      sortOrder = 'desc' 
-    } = req.query;
+exports.getUsers = asyncHandler(async (req, res) => {
+  const { 
+    page = 1, 
+    limit = 10, 
+    search = '', 
+    status, // 'active', 'blocked'
+    sortBy = 'createdAt', 
+    sortOrder = 'desc' 
+  } = req.query;
 
-    const query = { isDeleted: { $ne: true } };
+  const query = { isDeleted: { $ne: true } };
 
-    // Status filter
-    if (status === 'blocked') {
-      query.isBlocked = true;
-    } else if (status === 'active') {
-      query.isBlocked = false;
-    }
-
-    // Search by username, email, mobile
-    if (search) {
-      query.$or = [
-        { username: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { mobile: { $regex: search, $options: 'i' } }
-      ];
-    }
-
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const sortObj = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
-
-    const users = await User.find(query)
-      .select('-password')
-      .sort(sortObj)
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    // Get order counts for each user (optional enhancement, but useful for list view)
-    const usersWithOrderCount = await Promise.all(users.map(async (user) => {
-      const orderCount = await Order.countDocuments({ user: user._id });
-      return { ...user.toObject(), orderCount };
-    }));
-
-    const totalUsers = await User.countDocuments(query);
-
-    res.status(200).json({
-      success: true,
-      data: usersWithOrderCount,
-      pagination: {
-        total: totalUsers,
-        page: parseInt(page),
-        pages: Math.ceil(totalUsers / limit)
-      }
-    });
-
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+  // Status filter
+  if (status === 'blocked') {
+    query.isBlocked = true;
+  } else if (status === 'active') {
+    query.isBlocked = false;
   }
-};
+
+  // Search by username, email, mobile
+  if (search) {
+    const searchString = String(search).trim();
+    const safeSearch = searchString.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    query.$or = [
+      { username: { $regex: safeSearch, $options: 'i' } },
+      { email: { $regex: safeSearch, $options: 'i' } },
+      { mobile: { $regex: safeSearch, $options: 'i' } }
+    ];
+  }
+
+  const pageNum = Math.max(1, parseInt(page) || 1);
+  let limitNum = parseInt(limit) || 10;
+  if (limitNum < 1) limitNum = 1;
+
+  const skip = (pageNum - 1) * limitNum;
+  const sortObj = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
+
+  const [usersWithOrderCount, totalUsers] = await Promise.all([
+    User.aggregate([
+      { $match: query },
+      { $sort: sortObj },
+      { $skip: skip },
+      { $limit: limitNum },
+      {
+        $lookup: {
+          from: 'orders',
+          localField: '_id',
+          foreignField: 'user',
+          as: 'userOrders'
+        }
+      },
+      {
+        $addFields: {
+          orderCount: { $size: "$userOrders" }
+        }
+      },
+      {
+        $project: {
+          password: 0,
+          userOrders: 0
+        }
+      }
+    ]),
+    User.countDocuments(query)
+  ]);
+
+  res.status(200).json({
+    success: true,
+    data: usersWithOrderCount,
+    pagination: {
+      total: totalUsers,
+      page: pageNum,
+      pages: Math.ceil(totalUsers / limitNum)
+    }
+  });
+});
 
 // @desc    Get single user full profile (Orders, Wishlist)
-exports.getUserById = async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id).select('-password');
-    if (!user || user.isDeleted) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-
-    // Fetch Orders
-    const orders = await Order.find({ user: user._id }).sort({ createdAt: -1 });
-    
-    // Fetch Wishlist
-    const wishlist = await Wishlist.findOne({ user: user._id }).populate('items.productId');
-
-    res.status(200).json({
-      success: true,
-      data: {
-        profile: user,
-        orders,
-        wishlist: wishlist ? wishlist.items : []
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+exports.getUserById = asyncHandler(async (req, res) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    const error = new Error('Invalid user ID');
+    error.status = 400;
+    throw error;
   }
-};
+
+  const user = await User.findById(req.params.id).select('-password');
+  if (!user || user.isDeleted) {
+    const error = new Error('User not found');
+    error.status = 404;
+    throw error;
+  }
+
+  // Fetch Orders and Wishlist concurrently
+  const [orders, wishlist] = await Promise.all([
+    Order.find({ user: user._id }).sort({ createdAt: -1 }),
+    Wishlist.findOne({ user: user._id }).populate('items.productId')
+  ]);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      profile: user,
+      orders,
+      wishlist: wishlist ? wishlist.items : []
+    }
+  });
+});
 
 // @desc    Block or Unblock a user
-exports.toggleBlockUser = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { isBlocked, blockedReason } = req.body;
+exports.toggleBlockUser = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { isBlocked, blockedReason } = req.body;
 
-    const user = await User.findById(id);
-    if (!user || user.isDeleted) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-
-    if (user.role === 'admin') {
-      return res.status(403).json({ success: false, message: 'Cannot block an admin account' });
-    }
-
-    user.isBlocked = isBlocked;
-    user.blockedAt = isBlocked ? new Date() : null;
-    user.blockedReason = isBlocked ? (blockedReason || 'Blocked by Admin') : null;
-
-    await user.save();
-
-    res.status(200).json({
-      success: true,
-      message: `User successfully ${isBlocked ? 'blocked' : 'unblocked'}`,
-      data: user
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    const error = new Error('Invalid user ID');
+    error.status = 400;
+    throw error;
   }
-};
+
+  const user = await User.findById(id);
+  if (!user || user.isDeleted) {
+    const error = new Error('User not found');
+    error.status = 404;
+    throw error;
+  }
+
+  if (user.role === 'admin') {
+    const error = new Error('Cannot block an admin account');
+    error.status = 403;
+    throw error;
+  }
+
+  user.isBlocked = isBlocked;
+  user.blockedAt = isBlocked ? new Date() : null;
+  user.blockedReason = isBlocked ? (blockedReason || 'Blocked by Admin') : null;
+
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: `User successfully ${isBlocked ? 'blocked' : 'unblocked'}`,
+    data: user
+  });
+});
 
 // @desc    Delete user
-exports.deleteUser = async (req, res) => {
-  try {
-    const { id } = req.params;
+exports.deleteUser = asyncHandler(async (req, res) => {
+  const { id } = req.params;
 
-    const user = await User.findById(id);
-    if (!user || user.isDeleted) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    const error = new Error('Invalid user ID');
+    error.status = 400;
+    throw error;
+  }
 
-    if (user.role === 'admin') {
-      return res.status(403).json({ success: false, message: 'Cannot delete an admin account' });
-    }
+  const user = await User.findById(id);
+  if (!user || user.isDeleted) {
+    const error = new Error('User not found');
+    error.status = 404;
+    throw error;
+  }
 
-    const orderCount = await Order.countDocuments({ user: id });
+  if (user.role === 'admin') {
+    const error = new Error('Cannot delete an admin account');
+    error.status = 403;
+    throw error;
+  }
 
-    if (orderCount > 0) {
-      // Force a block instead of soft delete if they have orders
-      user.isBlocked = true;
-      user.blockedAt = new Date();
-      user.blockedReason = 'System Action: Blocked instead of deleted due to existing orders.';
-      await user.save();
+  const orderCount = await Order.countDocuments({ user: id });
 
-      return res.status(409).json({
-        success: false,
-        message: 'Cannot delete a user with existing orders. The account has been permanently blocked instead.',
-        data: user
-      });
-    }
-
-    // Soft delete if no orders exist
-    user.isDeleted = true;
+  if (orderCount > 0) {
+    // Force a block instead of soft delete if they have orders
     user.isBlocked = true;
+    user.blockedAt = new Date();
+    user.blockedReason = 'System Action: Blocked instead of deleted due to existing orders.';
     await user.save();
 
-    res.status(200).json({
-      success: true,
-      message: 'User account successfully deleted.'
+    return res.status(409).json({
+      success: false,
+      message: 'Cannot delete a user with existing orders. The account has been permanently blocked instead.',
+      data: user
     });
-
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
   }
-};
+
+  // Soft delete if no orders exist
+  user.isDeleted = true;
+  user.isBlocked = true;
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'User account successfully deleted.'
+  });
+});

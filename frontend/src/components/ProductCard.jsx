@@ -115,6 +115,12 @@ export default function ProductCard({ product, index = 0 }) {
             <FiStar className="text-luxury-gold fill-current" size={14} />
             <span className="text-xs font-inter text-luxury-white">{product.rating || 'New'}</span>
           </div>
+          {(product.sizes?.length > 0 || product.colors?.length > 0) && (
+            <div className="flex flex-col items-center justify-center gap-1 mb-2 text-[10px] font-poppins text-luxury-gray uppercase tracking-widest">
+              {product.sizes?.length > 0 && <span>Sizes: {product.sizes.join(', ')}</span>}
+              {product.colors?.length > 0 && <span>Colors: {product.colors.join(', ')}</span>}
+            </div>
+          )}
         </div>
         
         <div className="flex items-center justify-center w-full mt-auto pt-4 border-t border-luxury-gray/10">

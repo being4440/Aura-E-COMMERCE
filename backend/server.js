@@ -7,6 +7,8 @@ const authRoutes = require('./routes/authRoutes');
 dotenv.config();
 
 const app = express(); 
+// Configure trust proxy for Render (and other reverse proxies) so express-rate-limit uses the real client IP
+app.set('trust proxy', 1);
 
 // Middleware
 app.use(cors({
@@ -52,7 +54,8 @@ app.use((req, res, next) => {
 // Global Error Handler
 app.use((err, req, res, next) => {
   console.error('Global Error Handler:', err.stack);
-  res.status(500).json({ message: 'Internal Server Error' });
+  const statusCode = err.status || (res.statusCode === 200 ? 500 : res.statusCode);
+  res.status(statusCode).json({ success: false, message: err.message || 'Internal Server Error' });
 });
 
 // Listen on Port (default 5000)

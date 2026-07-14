@@ -23,4 +23,34 @@ const uploadImage = async (fileBuffer, mimetype, folder = 'ecommerce') => {
   }
 };
 
-module.exports = { cloudinary, uploadImage };
+const deleteImage = async (imageUrl) => {
+  try {
+    if (!imageUrl || !imageUrl.includes('cloudinary.com')) return;
+    
+    // Extract public_id from Cloudinary URL
+    // URL format: https://res.cloudinary.com/<cloud_name>/image/upload/v1234567890/folder/image.jpg
+    const parts = imageUrl.split('/');
+    const uploadIndex = parts.indexOf('upload');
+    if (uploadIndex === -1) return;
+    
+    let publicIdWithExtension = parts.slice(uploadIndex + 1).join('/');
+    
+    // Remove version tag if present (e.g., v1712345678)
+    if (publicIdWithExtension.startsWith('v') && !isNaN(publicIdWithExtension.split('/')[0].substring(1))) {
+      publicIdWithExtension = publicIdWithExtension.split('/').slice(1).join('/');
+    }
+    
+    // Remove file extension
+    const lastDotIndex = publicIdWithExtension.lastIndexOf('.');
+    const publicId = lastDotIndex !== -1 ? publicIdWithExtension.substring(0, lastDotIndex) : publicIdWithExtension;
+    
+    if (publicId) {
+      await cloudinary.uploader.destroy(publicId);
+      console.log(`Deleted image from Cloudinary: ${publicId}`);
+    }
+  } catch (error) {
+    console.error('Cloudinary delete error:', error);
+  }
+};
+
+module.exports = { cloudinary, uploadImage, deleteImage };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import { adminGetUserByIdAPI, adminUpdateUserBlockAPI } from '../../api/api';
 import { toast } from 'react-hot-toast';
 import { FiArrowLeft, FiShieldOff, FiShield, FiUser, FiMapPin, FiPhone, FiMail, FiShoppingBag, FiHeart } from 'react-icons/fi';
 import dayjs from 'dayjs';
@@ -15,10 +15,7 @@ export default function AdminUserDetail() {
   const fetchUserDetail = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/users/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await adminGetUserByIdAPI(id);
       if (res.data.success) {
         setData(res.data.data);
       }
@@ -40,18 +37,13 @@ export default function AdminUserDetail() {
     if (!window.confirm(`Are you sure you want to ${action} this user?`)) return;
     
     try {
-      const token = localStorage.getItem('token');
       let reason = '';
       if (!profile.isBlocked) {
         reason = window.prompt('Enter a reason for blocking this user (optional):');
         if (reason === null) return;
       }
 
-      const res = await axios.patch(
-        `${import.meta.env.VITE_API_URL}/api/admin/users/${id}/block`,
-        { isBlocked: !profile.isBlocked, blockedReason: reason },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await adminUpdateUserBlockAPI(id, { isBlocked: !profile.isBlocked, blockedReason: reason });
       
       if (res.data.success) {
         toast.success(res.data.message);

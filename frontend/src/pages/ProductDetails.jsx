@@ -42,7 +42,7 @@ export default function ProductDetails() {
         setReviews(reviewsRes.data.reviews || []);
         
         if (user) {
-          const uReview = reviewsRes.data.reviews?.find(r => (r.user?._id || r.user) === user._id);
+          const uReview = reviewsRes.data.reviews?.find(r => (r.user?._id || r.user) === (user._id || user.id));
           if (uReview) {
             setUserReview(uReview);
             setRating(uReview.rating);
@@ -84,18 +84,14 @@ export default function ProductDetails() {
         return;
       }
 
-      const productData = {
-        productId: product._id,
-        name: product.title,
-        price: product.price,
-        image: product.images?.[0] || '',
-        brand: product.brand || '',
-        maxStock: product.stock,
+      const payload = {
+        ...product,
+        productId: product._id || product.id || product.productId,
         quantity
       };
 
-      dispatch(optimisticAdd(productData));
-      const result = await dispatch(addToCart(productData));
+      dispatch(optimisticAdd(payload));
+      const result = await dispatch(addToCart(payload));
       if (addToCart.fulfilled.match(result)) {
         toast.success('Added to cart!');
       } else {
@@ -140,7 +136,7 @@ export default function ProductDetails() {
       
       const reviewsRes = await getProductReviewsAPI(id);
       setReviews(reviewsRes.data.reviews || []);
-      const uReview = reviewsRes.data.reviews?.find(r => (r.user?._id || r.user) === user._id);
+      const uReview = reviewsRes.data.reviews?.find(r => (r.user?._id || r.user) === (user._id || user.id));
       if (uReview) setUserReview(uReview);
       
       const prodRes = await getProductByIdAPI(id);
@@ -154,13 +150,16 @@ export default function ProductDetails() {
     }
   };
 
-  const handleReviewDelete = async () => {
+  const handleReviewDelete = async (reviewId) => {
     try {
-      await deleteReviewAPI(id, userReview._id);
+      await deleteReviewAPI(id, reviewId);
       toast.success('Review deleted');
-      setRating(0);
-      setComment('');
-      setUserReview(null);
+      
+      if (userReview && userReview._id === reviewId) {
+        setRating(0);
+        setComment('');
+        setUserReview(null);
+      }
       
       const reviewsRes = await getProductReviewsAPI(id);
       setReviews(reviewsRes.data.reviews || []);
@@ -279,9 +278,26 @@ export default function ProductDetails() {
               </div>
             </div>
 
-            <p className="text-luxury-gray font-inter leading-relaxed text-lg mb-10">
+            <p className="text-luxury-gray font-inter leading-relaxed text-lg mb-6">
               {product.description}
             </p>
+
+            {(product.sizes?.length > 0 || product.colors?.length > 0) && (
+              <div className="flex gap-8 mb-10 border-t border-b border-luxury-gray/10 py-4">
+                {product.sizes?.length > 0 && (
+                  <div>
+                    <span className="font-poppins uppercase tracking-widest text-xs text-luxury-gray block mb-1">Sizes</span>
+                    <span className="text-luxury-white font-inter text-sm">{product.sizes.join(', ')}</span>
+                  </div>
+                )}
+                {product.colors?.length > 0 && (
+                  <div>
+                    <span className="font-poppins uppercase tracking-widest text-xs text-luxury-gray block mb-1">Colors</span>
+                    <span className="text-luxury-white font-inter text-sm">{product.colors.join(', ')}</span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {user?.role !== 'admin' && (
               <div className="mb-10">
@@ -360,7 +376,7 @@ export default function ProductDetails() {
               </h3>
               
               {user ? (
-                <form onSubmit={handleReviewSubmit} className="mb-10 bg-[#111] p-6 border border-luxury-gray/20">
+                <form id="review-form" onSubmit={handleReviewSubmit} className="mb-10 bg-[#111] p-6 border border-luxury-gray/20">
                   <h4 className="text-luxury-white font-playfair mb-4">{userReview ? 'Update Your Review' : 'Write a Review'}</h4>
                   <div className="flex gap-2 mb-4">
                     {[1, 2, 3, 4, 5].map((star) => (
@@ -390,7 +406,7 @@ export default function ProductDetails() {
                       {userReview ? 'Update' : 'Submit'}
                     </button>
                     {userReview && (
-                      <button type="button" onClick={handleReviewDelete} className="bg-red-500/80 text-white px-6 py-2 font-poppins uppercase tracking-widest text-xs hover:bg-red-600 transition-colors flex items-center gap-2">
+                      <button type="button" onClick={() => handleReviewDelete(userReview._id)} className="bg-red-500/80 text-white px-6 py-2 font-poppins uppercase tracking-widest text-xs hover:bg-red-600 transition-colors flex items-center gap-2">
                         <FiTrash2 size={14} /> Delete
                       </button>
                     )}
@@ -403,16 +419,41 @@ export default function ProductDetails() {
               )}
 
               <div className="space-y-6">
-                {reviews.length > 0 ? reviews.map((rev) => (
+                {reviews.length > 0 ? reviews.map((rev) => {
+                  const isOwner = user && (rev.user?._id || rev.user) === (user._id || user.id);
+                  const isAdmin = user && user.role === 'admin';
+                  const canDelete = isOwner || isAdmin;
+                  return (
                   <div key={rev._id} className="border-b border-luxury-gray/10 pb-6">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="flex text-luxury-gold">{renderStars(rev.rating)}</div>
                       <span className="text-luxury-white font-inter text-sm ml-2">{rev.user?.name || rev.user?.username || 'User'}</span>
                       <span className="text-luxury-gray font-inter text-xs ml-auto">{new Date(rev.createdAt).toLocaleDateString()}</span>
                     </div>
-                    <p className="text-luxury-gray font-inter text-sm">{rev.comment}</p>
+                    <p className="text-luxury-gray font-inter text-sm mb-3">{rev.comment}</p>
+                    {canDelete && (
+                      <div className="flex gap-4">
+                        {isOwner && (
+                          <button 
+                            onClick={() => {
+                              const form = document.getElementById('review-form');
+                              if (form) window.scrollTo({ top: form.offsetTop - 100, behavior: 'smooth' });
+                            }}
+                            className="text-luxury-gold font-inter text-xs uppercase tracking-widest hover:text-white transition-colors"
+                          >
+                            Edit
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => handleReviewDelete(rev._id)}
+                          className="text-red-500 font-inter text-xs uppercase tracking-widest hover:text-red-400 transition-colors"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )) : (
+                )}) : (
                   <p className="text-luxury-gray font-inter text-sm mb-6">No reviews yet. Be the first to review this product!</p>
                 )}
               </div>

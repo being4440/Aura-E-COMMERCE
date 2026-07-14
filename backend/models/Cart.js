@@ -3,16 +3,12 @@ const { Schema } = mongoose;
 
 const cartItemSchema = new Schema({
   product: {
-    productId: { type: String, required: true },
-    name: { type: String, required: true },
-    price: { type: Number, required: true, min: 0 },
-
-    image: { type: String },
-    brand: { type: String },
-    size: { type: String },
-    color: { type: String },
-    maxStock: { type: Number }
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product',
+    required: true
   },
+  size: { type: String },
+  color: { type: String },
   quantity: { type: Number, required: true, default: 1, min: 1, max: 10 }
 });
 
@@ -29,7 +25,8 @@ cartSchema.virtual('totalItems').get(function() {
 
 cartSchema.virtual('totalPrice').get(function() {
   return this.items.reduce((sum, item) => {
-    return sum + (item.quantity * item.product.price);
+    const price = item.product && item.product.price ? item.product.price : 0;
+    return sum + (item.quantity * price);
   }, 0);
 });
 

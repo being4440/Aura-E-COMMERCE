@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { adminGetCategoriesAPI, adminAddCategoryAPI, adminUpdateCategoryAPI, adminDeleteCategoryAPI } from '../../api/api';
 import { toast } from 'react-hot-toast';
 import { FiEdit2, FiTrash2, FiPlus, FiX, FiCheck } from 'react-icons/fi';
 
 export default function AdminCategoriesList() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   
   const [showAddForm, setShowAddForm] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -16,11 +17,7 @@ export default function AdminCategoriesList() {
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      // Using the generic route we made for all categories
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/categories`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await adminGetCategoriesAPI();
       if (res.data.success) {
         setCategories(res.data.data);
       }
@@ -37,15 +34,11 @@ export default function AdminCategoriesList() {
 
   const handleCreateCategory = async (e) => {
     e.preventDefault();
-    if (!newCategoryName.trim()) return;
+    if (!newCategoryName.trim() || submitting) return;
     
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/admin/categories`,
-        { name: newCategoryName },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      setSubmitting(true);
+      const res = await adminAddCategoryAPI({ name: newCategoryName });
       if (res.data.success) {
         toast.success('Category created successfully');
         setNewCategoryName('');
@@ -54,6 +47,8 @@ export default function AdminCategoriesList() {
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to create category');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -68,14 +63,10 @@ export default function AdminCategoriesList() {
   };
 
   const handleUpdateCategory = async (id) => {
-    if (!editName.trim()) return;
+    if (!editName.trim() || submitting) return;
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/admin/categories/${id}`,
-        { name: editName },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      setSubmitting(true);
+      const res = await adminUpdateCategoryAPI(id, { name: editName });
       if (res.data.success) {
         toast.success('Category updated successfully');
         cancelEdit();
@@ -83,17 +74,14 @@ export default function AdminCategoriesList() {
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to update category');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleToggleActive = async (id, currentStatus) => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/admin/categories/${id}`,
-        { isActive: !currentStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await adminUpdateCategoryAPI(id, { isActive: !currentStatus });
       if (res.data.success) {
         toast.success('Category status updated');
         fetchCategories();
@@ -106,11 +94,7 @@ export default function AdminCategoriesList() {
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to deactivate this category? It will no longer be available for new products.')) return;
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.delete(
-        `${import.meta.env.VITE_API_URL}/api/admin/categories/${id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await adminDeleteCategoryAPI(id);
       if (res.data.success) {
         toast.success(res.data.message || 'Category deactivated');
         fetchCategories();
@@ -146,8 +130,8 @@ export default function AdminCategoriesList() {
               className="w-full bg-luxury-dark border border-luxury-gray/20 text-luxury-white px-4 py-2 focus:border-luxury-gold outline-none" 
             />
           </div>
-          <button type="submit" className="bg-luxury-gold text-luxury-dark px-6 py-2 font-medium hover:bg-white transition-colors h-[42px]">
-            Save Category
+          <button type="submit" disabled={submitting} className="bg-luxury-gold text-luxury-dark px-6 py-2 font-medium hover:bg-white transition-colors h-[42px] disabled:opacity-50">
+            {submitting ? 'Saving...' : 'Save Category'}
           </button>
         </form>
       )}
@@ -196,7 +180,7 @@ export default function AdminCategoriesList() {
                     <div className="flex items-center justify-end gap-3">
                       {editingId === cat._id ? (
                         <>
-                          <button onClick={() => handleUpdateCategory(cat._id)} className="text-green-500 hover:text-green-400 transition-colors" title="Save">
+                          <button onClick={() => handleUpdateCategory(cat._id)} disabled={submitting} className="text-green-500 hover:text-green-400 transition-colors disabled:opacity-50" title="Save">
                             <FiCheck size={18} />
                           </button>
                           <button onClick={cancelEdit} className="text-luxury-gray hover:text-luxury-white transition-colors" title="Cancel">

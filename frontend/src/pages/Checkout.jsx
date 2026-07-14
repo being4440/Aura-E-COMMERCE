@@ -19,7 +19,7 @@ const Checkout = () => {
     city: currentUser?.address?.city || '',
     state: currentUser?.address?.state || ''
   });
-  const [paymentInfo, setPaymentInfo] = useState('Stripe');
+  const [paymentInfo, setPaymentInfo] = useState('stripe');
   const [isProcessing, setIsProcessing] = useState(false);
 
   const shipping = totalPrice > 499 || totalPrice === 0 ? 0 : 49;
@@ -49,7 +49,7 @@ const Checkout = () => {
         paymentInfo,
       };
 
-      if (paymentInfo === 'Stripe') {
+      if (paymentInfo === 'stripe') {
         // Stripe flow
         const response = await api.post('/payment/create-checkout-session', {
           shippingAddress: address
@@ -109,24 +109,24 @@ const Checkout = () => {
           <div>
             <label className="block text-gray-400 mb-2 font-medium">Payment Method</label>
             <div className="flex flex-col sm:flex-row gap-4 mt-2">
-              <label className={`flex-1 flex items-center justify-center p-4 border rounded-lg cursor-pointer transition-colors ${paymentInfo === 'Stripe' ? 'border-blue-500 bg-blue-500/10 text-blue-400' : 'border-gray-700 bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+              <label className={`flex-1 flex items-center justify-center p-4 border rounded-lg cursor-pointer transition-colors ${paymentInfo === 'stripe' ? 'border-blue-500 bg-blue-500/10 text-blue-400' : 'border-gray-700 bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
                 <input 
                   type="radio" 
                   name="paymentMethod" 
-                  value="Stripe" 
-                  checked={paymentInfo === 'Stripe'} 
+                  value="stripe" 
+                  checked={paymentInfo === 'stripe'} 
                   onChange={(e) => setPaymentInfo(e.target.value)} 
                   className="hidden" 
                 />
                 <span className="font-semibold">Stripe (Card Payment)</span>
               </label>
               
-              <label className={`flex-1 flex items-center justify-center p-4 border rounded-lg cursor-pointer transition-colors ${paymentInfo === 'Cash on Delivery' ? 'border-blue-500 bg-blue-500/10 text-blue-400' : 'border-gray-700 bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+              <label className={`flex-1 flex items-center justify-center p-4 border rounded-lg cursor-pointer transition-colors ${paymentInfo === 'cod' ? 'border-blue-500 bg-blue-500/10 text-blue-400' : 'border-gray-700 bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
                 <input 
                   type="radio" 
                   name="paymentMethod" 
-                  value="Cash on Delivery" 
-                  checked={paymentInfo === 'Cash on Delivery'} 
+                  value="cod" 
+                  checked={paymentInfo === 'cod'} 
                   onChange={(e) => setPaymentInfo(e.target.value)} 
                   className="hidden" 
                 />
@@ -156,7 +156,7 @@ const Checkout = () => {
                 isProcessing ? 'bg-blue-800 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
               }`}
             >
-              {isProcessing ? (paymentInfo === 'Stripe' ? 'Redirecting to Stripe...' : 'Processing Order...') : (paymentInfo === 'Stripe' ? 'Pay Now' : 'Place Order')}
+              {isProcessing ? (paymentInfo === 'stripe' ? 'Redirecting to Stripe...' : 'Processing Order...') : (paymentInfo === 'stripe' ? 'Pay Now' : 'Place Order')}
             </button>
           </div>
         </form>

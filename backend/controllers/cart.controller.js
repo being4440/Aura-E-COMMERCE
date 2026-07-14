@@ -2,13 +2,15 @@ const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 const mongoose = require('mongoose');
 
+const asyncHandler = require("../middleware/asyncHandler");
+
 const catchAsync = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
 
 // ─── GET /api/cart ──────────────────────────────────────────────────────────
 exports.getCart = catchAsync(async (req, res) => {
-  let cart = await Cart.findOne({ user: req.user.id });
+  let cart = await Cart.findOne({ user: req.user.id }).populate('items.product');
   if (!cart) {
     return res.status(200).json({
       success: true,
@@ -16,29 +18,18 @@ exports.getCart = catchAsync(async (req, res) => {
     });
   }
 
-  // Sync prices with latest from DB
-  const productIds = cart.items.map(item => item.product.productId);
-  const products = await Product.find({ _id: { $in: productIds } }).lean();
-  const productMap = {};
-  products.forEach(p => productMap[p._id.toString()] = p);
+  const responseCart = cart.toJSON({ virtuals: true });
 
-  let updated = false;
-  cart.items.forEach(item => {
-    const p = productMap[item.product.productId];
-    if (p) {
-      if (item.product.price !== p.price || item.product.maxStock !== p.stock) {
-        item.product.price = p.price;
-        item.product.maxStock = p.stock;
-        updated = true;
-      }
+  responseCart.items.forEach(item => {
+    if (item.product) {
+      item.product.maxStock = item.product.stock; // Map stock for frontend
+      item.isAvailable = true;
+    } else {
+      item.isAvailable = false;
     }
   });
 
-  if (updated) {
-    await cart.save();
-  }
-
-  res.status(200).json({ success: true, data: cart.toJSON({ virtuals: true }) });
+  res.status(200).json({ success: true, data: responseCart });
 });
 
 // ─── POST /api/cart/add ─────────────────────────────────────────────────────
@@ -46,23 +37,37 @@ exports.getCart = catchAsync(async (req, res) => {
 exports.addToCart = catchAsync(async (req, res) => {
   const { productId, size, color, quantity = 1 } = req.body;
 
+  if (!Number.isInteger(quantity) || quantity < 1) {
+    const error = new Error('Quantity must be an integer >= 1');
+    error.status = 400;
+    throw error;
+  }
+
   if (!mongoose.Types.ObjectId.isValid(productId)) {
-    return res.status(400).json({ success: false, message: 'Invalid product ID' });
+    const error = new Error('Invalid product ID');
+    error.status = 400;
+    throw error;
   }
 
   // Fetch live product from MongoDB
   const productDb = await Product.findById(productId);
   
   if (!productDb || !productDb.isActive) {
-    return res.status(404).json({ success: false, message: 'Product not available' });
+    const error = new Error('Product not available');
+    error.status = 404;
+    throw error;
   }
 
   if (productDb.stock <= 0) {
-    return res.status(400).json({ success: false, message: 'Product is out of stock' });
+    const error = new Error('Product is out of stock');
+    error.status = 400;
+    throw error;
   }
 
   if (quantity > productDb.stock) {
-    return res.status(400).json({ success: false, message: `Only ${productDb.stock} items available` });
+    const error = new Error(`Only ${productDb.stock} items available`);
+    error.status = 400;
+    throw error;
   }
 
   const name = productDb.title;
@@ -76,9 +81,9 @@ exports.addToCart = catchAsync(async (req, res) => {
 
   if (cart) {
     const itemIndex = cart.items.findIndex(
-      i => i.product.productId === productId &&
-           (i.product.size || null) === (size || null) &&
-           (i.product.color || null) === (color || null)
+      i => i.product.toString() === productId &&
+           (i.size || null) === (size || null) &&
+           (i.color || null) === (color || null)
     );
     
     if (itemIndex > -1) {
@@ -86,7 +91,9 @@ exports.addToCart = catchAsync(async (req, res) => {
       const existingQtyInCart = item.quantity || 0;
       
       if (existingQtyInCart + quantity > productDb.stock) {
-        return res.status(400).json({ success: false, message: 'Cannot add more — insufficient stock' });
+        const error = new Error('Cannot add more — insufficient stock');
+        error.status = 400;
+        throw error;
       }
 
       const newQty = existingQtyInCart + quantity;
@@ -96,7 +103,6 @@ exports.addToCart = catchAsync(async (req, res) => {
         {
           $set: {
             'items.$.quantity': newQty,
-            'items.$.product.price': price,
             updatedAt: Date.now()
           }
         },
@@ -108,7 +114,9 @@ exports.addToCart = catchAsync(async (req, res) => {
         {
           $push: {
             items: {
-              product: { productId, name, price, image, brand, size, color, maxStock },
+              product: productId,
+              size: size,
+              color: color,
               quantity: quantity
             }
           },
@@ -124,7 +132,9 @@ exports.addToCart = catchAsync(async (req, res) => {
       {
         $push: {
           items: {
-            product: { productId, name, price, image, brand, size, color, maxStock },
+            product: productId,
+            size: size,
+            color: color,
             quantity: quantity
           }
         },
@@ -134,13 +144,22 @@ exports.addToCart = catchAsync(async (req, res) => {
     );
   }
 
+  if (!cart) {
+    const error = new Error('Failed to update or create cart');
+    error.status = 500;
+    throw error;
+  }
+
+  await cart.populate('items.product');
   res.status(200).json({ success: true, data: cart });
 });
 
 // ─── DELETE /api/cart/:itemId ────────────────────────────────────────────────
 exports.removeItem = catchAsync(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(req.params.itemId)) {
-    return res.status(400).json({ success: false, message: 'Invalid item ID' });
+    const error = new Error('Invalid item ID');
+    error.status = 400;
+    throw error;
   }
 
   const cart = await Cart.findOneAndUpdate(
@@ -153,9 +172,12 @@ exports.removeItem = catchAsync(async (req, res) => {
   );
 
   if (!cart) {
-    return res.status(404).json({ success: false, message: 'Cart not found' });
+    const error = new Error('Cart not found');
+    error.status = 404;
+    throw error;
   }
 
+  await cart.populate('items.product');
   res.status(200).json({ success: true, data: cart });
 });
 
@@ -163,36 +185,45 @@ exports.removeItem = catchAsync(async (req, res) => {
 exports.updateQuantity = catchAsync(async (req, res) => {
   const { quantity } = req.body;
   if (!Number.isInteger(quantity) || quantity < 1) {
-    return res.status(400).json({ success: false, message: 'Quantity must be an integer >= 1' });
+    const error = new Error('Quantity must be an integer >= 1');
+    error.status = 400;
+    throw error;
   }
 
   if (!mongoose.Types.ObjectId.isValid(req.params.itemId)) {
-    return res.status(400).json({ success: false, message: 'Invalid item ID' });
+    const error = new Error('Invalid item ID');
+    error.status = 400;
+    throw error;
   }
 
   // Get current cart to find the productId
   const currentCart = await Cart.findOne({ user: req.user.id });
   if (!currentCart) {
-    return res.status(404).json({ success: false, message: 'Cart not found' });
+    const error = new Error('Cart not found');
+    error.status = 404;
+    throw error;
   }
 
   const item = currentCart.items.id(req.params.itemId);
   if (!item) {
-    return res.status(404).json({ success: false, message: 'Item not found in cart' });
+    const error = new Error('Item not found in cart');
+    error.status = 404;
+    throw error;
   }
 
   // Fetch live product stock
-  const product = await Product.findById(item.product.productId);
+  const product = await Product.findById(item.product);
   if (!product) {
-    return res.status(404).json({ success: false, message: 'Product not found' });
+    const error = new Error('Product not found');
+    error.status = 404;
+    throw error;
   }
 
   if (quantity > product.stock) {
-    return res.status(400).json({ 
-      success: false, 
-      message: `Only ${product.stock} available`,
-      availableStock: product.stock 
-    });
+    const error = new Error(`Only ${product.stock} available`);
+    error.status = 400;
+    error.availableStock = product.stock;
+    throw error;
   }
 
   const cart = await Cart.findOneAndUpdate(
@@ -206,6 +237,7 @@ exports.updateQuantity = catchAsync(async (req, res) => {
     { new: true }
   );
 
+  await cart.populate('items.product');
   res.status(200).json({ success: true, data: cart });
 });
 

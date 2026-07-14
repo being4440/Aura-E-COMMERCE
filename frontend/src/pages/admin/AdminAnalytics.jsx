@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { adminGetSalesAnalyticsAPI, adminGetProductsAnalyticsAPI, adminGetUsersAnalyticsAPI, adminGetPaymentsAnalyticsAPI } from '../../api/api';
 import { toast } from 'react-hot-toast';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
@@ -19,20 +19,18 @@ export default function AdminAnalytics() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const headers = { Authorization: `Bearer ${token}` };
 
       if (activeTab === 'sales') {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/analytics/sales?period=${period}`, { headers });
+        const res = await adminGetSalesAnalyticsAPI({ period });
         setSalesData(res.data.data);
       } else if (activeTab === 'products') {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/analytics/products`, { headers });
+        const res = await adminGetProductsAnalyticsAPI();
         setProductData(res.data.data);
       } else if (activeTab === 'users') {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/analytics/users?period=${period}`, { headers });
+        const res = await adminGetUsersAnalyticsAPI({ period });
         setUserData(res.data.data);
       } else if (activeTab === 'payments') {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/analytics/payments`, { headers });
+        const res = await adminGetPaymentsAnalyticsAPI();
         setPaymentData(res.data.data.summary);
       }
     } catch (err) {

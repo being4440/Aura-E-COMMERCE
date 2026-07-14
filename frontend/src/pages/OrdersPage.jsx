@@ -233,10 +233,22 @@ const OrdersPage = () => {
                       </div>
                       <div className="flex-1">
                         <h4 className="text-luxury-white font-playfair text-lg mb-1">{item.productId?.title || 'Product'}</h4>
-                        <div className="flex flex-wrap items-center gap-4 text-xs font-inter text-luxury-gray">
+                        <div className="flex flex-wrap items-center gap-3 text-xs font-inter text-luxury-gray">
                           <span className="font-poppins uppercase tracking-widest">Qty: {item.quantity}</span>
                           <span>•</span>
                           <span className="tracking-wider">₹{item.price?.toLocaleString()}</span>
+                          {(item.productId?.size) && (
+                            <>
+                              <span>•</span>
+                              <span className="tracking-wider uppercase">Size: {item.productId.size}</span>
+                            </>
+                          )}
+                          {(item.productId?.color) && (
+                            <>
+                              <span>•</span>
+                              <span className="tracking-wider uppercase">Color: {item.productId.color}</span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>

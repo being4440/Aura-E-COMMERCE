@@ -21,9 +21,11 @@
     "nodemailer": "^8.0.11",
     "pdfkit": "^0.19.1",
     "razorpay": "^2.9.6",
-    "stripe": "^22.2.0"
+    "stripe": "^22.2.0",
+    "supertest": "^7.2.2"
   },
   "devDependencies": {
+    "jscodeshift": "^17.3.0",
     "nodemon": "^3.1.0"
   }
 }

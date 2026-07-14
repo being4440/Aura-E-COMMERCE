@@ -49,7 +49,7 @@ const OrderSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['stripe', 'cod', 'Cash on Delivery', 'Credit Card', 'Debit Card', 'UPI'],
+    enum: ['stripe', 'cod'],
     default: 'cod'
   },
   stripeSessionId: {
@@ -102,6 +102,5 @@ OrderSchema.index({ createdAt: -1 });
 OrderSchema.index({ status: 1 });
 OrderSchema.index({ paymentMethod: 1 });
 OrderSchema.index({ returnStatus: 1 });
-OrderSchema.index({ invoiceNumber: 1 });
 
 module.exports = mongoose.model('Order', OrderSchema);

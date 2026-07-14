@@ -3,104 +3,106 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Cart = require('../models/Cart');
 const mongoose = require('mongoose');
+const asyncHandler = require('../middleware/asyncHandler');
 
-exports.createCheckoutSession = async (req, res) => {
-  try {
-    const { shippingAddress } = req.body;
+exports.createCheckoutSession = asyncHandler(async (req, res) => {
+  const { shippingAddress } = req.body;
 
-    if (!shippingAddress || Object.keys(shippingAddress).length === 0) {
-      return res.status(400).json({ success: false, message: 'shippingAddress is empty or missing.' });
-    }
-
-    const userCart = await Cart.findOne({ user: req.user.id });
-    if (!userCart || userCart.items.length === 0) {
-      return res.status(400).json({ success: false, message: 'Cannot place order with an empty cart' });
-    }
-
-    let calculatedTotalAmount = 0;
-    const line_items = [];
-    const validatedItems = [];
-
-    // Verify stock and prepare line items
-    for (const item of userCart.items) {
-      if (!item.quantity || item.quantity <= 0) continue;
-      
-      const product = await Product.findById(item.product.productId);
-      if (!product || !product.isActive) {
-        return res.status(404).json({ success: false, message: `Product ${item.product.productId} not found or is inactive` });
-      }
-      if (product.stock < item.quantity) {
-        return res.status(400).json({ 
-          success: false, 
-          message: `${product.title} is out of stock. Only ${product.stock} available.` 
-        });
-      }
-
-      const itemPrice = product.price;
-      calculatedTotalAmount += itemPrice * item.quantity;
-      
-      validatedItems.push({
-        productId: product._id.toString(),
-        quantity: item.quantity,
-        price: itemPrice
-      });
-
-      line_items.push({
-        price_data: {
-          currency: 'inr',
-          product_data: {
-            name: product.title,
-            images: product.images && product.images.length > 0 ? [product.images[0].url] : [],
-          },
-          unit_amount: itemPrice * 100, // Stripe expects amounts in cents/paise
-        },
-        quantity: item.quantity,
-      });
-    }
-
-    if (validatedItems.length === 0) {
-      return res.status(400).json({ success: false, message: 'No valid items in cart' });
-    }
-
-    // Calculate shipping (matching frontend logic: free if total > 499)
-    const shipping = calculatedTotalAmount > 499 ? 0 : 49;
-    if (shipping > 0) {
-      line_items.push({
-        price_data: {
-          currency: 'inr',
-          product_data: { name: 'Shipping Charge' },
-          unit_amount: shipping * 100,
-        },
-        quantity: 1,
-      });
-      calculatedTotalAmount += shipping;
-    }
-
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items,
-      mode: 'payment',
-      success_url: `${process.env.FRONTEND_URL}/order-confirmation/{CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL}/checkout`,
-      metadata: {
-        userId: req.user.id.toString(),
-        shippingAddress: JSON.stringify(shippingAddress),
-        items: JSON.stringify(validatedItems), // Storing items to reconstruct order in webhook
-        totalAmount: calculatedTotalAmount.toString()
-      }
-    });
-
-    res.status(200).json({
-      success: true,
-      id: session.id,
-      url: session.url
-    });
-
-  } catch (err) {
-    console.error('Stripe Session Error:', err);
-    res.status(500).json({ success: false, message: err.message });
+  if (!shippingAddress || Object.keys(shippingAddress).length === 0) {
+    const error = new Error('shippingAddress is empty or missing.');
+    error.status = 400;
+    throw error;
   }
-};
+
+  const userCart = await Cart.findOne({ user: req.user.id });
+  if (!userCart || userCart.items.length === 0) {
+    const error = new Error('Cannot place order with an empty cart');
+    error.status = 400;
+    throw error;
+  }
+
+  let calculatedTotalAmount = 0;
+  const line_items = [];
+  const validatedItems = [];
+
+  // Verify stock and prepare line items
+  for (const item of userCart.items) {
+    if (!item.quantity || item.quantity <= 0) continue;
+    
+    const product = await Product.findById(item.product);
+    if (!product || !product.isActive) {
+      const error = new Error(`Product ${item.product} not found or is inactive`);
+      error.status = 404;
+      throw error;
+    }
+    if (product.stock < item.quantity) {
+      const error = new Error(`${product.title} is out of stock. Only ${product.stock} available.`);
+      error.status = 400;
+      throw error;
+    }
+
+    const itemPrice = product.price;
+    calculatedTotalAmount += itemPrice * item.quantity;
+    
+    validatedItems.push({
+      productId: product._id.toString(),
+      quantity: item.quantity,
+      price: itemPrice
+    });
+
+    line_items.push({
+      price_data: {
+        currency: 'inr',
+        product_data: {
+          name: product.title,
+          images: product.images && product.images.length > 0 ? [product.images[0].url] : [],
+        },
+        unit_amount: itemPrice * 100, // Stripe expects amounts in cents/paise
+      },
+      quantity: item.quantity,
+    });
+  }
+
+  if (validatedItems.length === 0) {
+    const error = new Error('No valid items in cart');
+    error.status = 400;
+    throw error;
+  }
+
+  // Calculate shipping (matching frontend logic: free if total > 499)
+  const shipping = calculatedTotalAmount > 499 ? 0 : 49;
+  if (shipping > 0) {
+    line_items.push({
+      price_data: {
+        currency: 'inr',
+        product_data: { name: 'Shipping Charge' },
+        unit_amount: shipping * 100,
+      },
+      quantity: 1,
+    });
+    calculatedTotalAmount += shipping;
+  }
+
+  const session = await stripe.checkout.sessions.create({
+    payment_method_types: ['card'],
+    line_items,
+    mode: 'payment',
+    success_url: `${process.env.FRONTEND_URL}/order-confirmation/{CHECKOUT_SESSION_ID}`,
+    cancel_url: `${process.env.FRONTEND_URL}/checkout`,
+    metadata: {
+      userId: req.user.id.toString(),
+      shippingAddress: JSON.stringify(shippingAddress),
+      items: JSON.stringify(validatedItems), // Storing items to reconstruct order in webhook
+      totalAmount: calculatedTotalAmount.toString()
+    }
+  });
+
+  res.status(200).json({
+    success: true,
+    id: session.id,
+    url: session.url
+  });
+});
 
 exports.webhook = async (req, res) => {
   const sig = req.headers['stripe-signature'];

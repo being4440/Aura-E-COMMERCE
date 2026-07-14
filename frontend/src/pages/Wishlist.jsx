@@ -23,17 +23,13 @@ export default function Wishlist() {
       return;
     }
     try {
-      const productData = {
-        productId: product._id,
-        name: product.title,
-        price: product.price,
-        image: product.images?.[0] || '',
-        brand: product.brand || '',
-        maxStock: product.stock,
+      const payload = {
+        ...product,
+        productId: product._id || product.id || product.productId,
         quantity: 1
       };
-      dispatch(optimisticAdd(productData));
-      const result = await dispatch(addToCart(productData));
+      dispatch(optimisticAdd(payload));
+      const result = await dispatch(addToCart(payload));
       if (addToCart.fulfilled.match(result)) {
         toast.success('Moved to cart!');
         removeFromWishlist(product);

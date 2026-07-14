@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { getCartAPI, addToCartAPI, updateQtyAPI, removeItemAPI, clearCartAPI } from '../api/api';
+import { normalizeProduct } from '../utils/normalizeProduct';
 
 const initialState = {
   items: [],
@@ -81,18 +82,20 @@ const cartSlice = createSlice({
     },
     // Optimistic: instantly add item to local state
     optimisticAdd: (state, action) => {
-      const { productId, name, price, image, brand, size, color, maxStock } = action.payload;
+      const product = normalizeProduct(action.payload);
+      const { productId, size, color, stock } = product;
+      
       const existingIdx = state.items.findIndex(
-        i => i.product.productId === productId && i.product.size === size && i.product.color === color
+        i => i.product.productId === productId && (i.size || i.product.size) === size && (i.color || i.product.color) === color
       );
       if (existingIdx > -1) {
         const item = state.items[existingIdx];
-        item.quantity = Math.min(item.quantity + 1, maxStock ?? 10);
+        item.quantity = Math.min(item.quantity + 1, stock ?? 10);
       } else {
         // Temp _id so CartItem renders without crashing
         state.items.push({
-          _id: `optimistic_${productId}`,
-          product: { productId, name, price, image, brand, size, color, maxStock },
+          _id: `optimistic_${productId}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+          product,
           quantity: 1
         });
       }
@@ -121,8 +124,15 @@ const cartSlice = createSlice({
     // Sync state from server response (source of truth)
     const syncFromServer = (state, action) => {
       if (action.payload?.data) {
-        const { items, totalItems, totalPrice } = action.payload.data;
-        state.items = items || [];
+        let { items, totalItems, totalPrice } = action.payload.data;
+        
+        // Normalize all products received from the server
+        items = (items || []).map(item => ({
+          ...item,
+          product: normalizeProduct(item.product)
+        }));
+        
+        state.items = items;
         state.totalItems = totalItems ?? computeTotals(items || []).totalItems;
         state.totalPrice = totalPrice ?? computeTotals(items || []).totalPrice;
       }

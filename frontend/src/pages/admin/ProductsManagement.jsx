@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiEdit2, FiTrash2, FiPlus, FiSearch, FiChevronLeft, FiChevronRight, FiImage } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import axios from 'axios';
+import { adminGetProductsAPI, adminGetCategoriesAPI, adminDeleteProductAPI, adminUpdateStockAPI } from '../../api/api';
 
 export default function ProductsManagement() {
   const [products, setProducts] = useState([]);
@@ -20,7 +20,6 @@ export default function ProductsManagement() {
   const fetchProducts = async (page = 1) => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
       
       const params = new URLSearchParams({
         page,
@@ -32,9 +31,7 @@ export default function ProductsManagement() {
       if (stockStatusFilter) params.append('stockStatus', stockStatusFilter);
       if (activeFilter !== '') params.append('isActive', activeFilter);
 
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/products?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await adminGetProductsAPI(params);
       
       if (res.data.success) {
         setProducts(Array.isArray(res.data.data) ? res.data.data : []);
@@ -49,10 +46,7 @@ export default function ProductsManagement() {
 
   const fetchCategories = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/categories`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await adminGetCategoriesAPI();
       if (res.data.success) {
         setCategories(res.data.data);
       }
@@ -77,10 +71,7 @@ export default function ProductsManagement() {
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this product?')) return;
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.delete(`${import.meta.env.VITE_API_URL}/api/admin/products/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await adminDeleteProductAPI(id);
       if (res.data.success) {
         toast.success(res.data.message || 'Product deleted');
         fetchProducts(pagination.page);
@@ -92,11 +83,7 @@ export default function ProductsManagement() {
 
   const handleQuickUpdateStock = async (id, newStock) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.patch(`${import.meta.env.VITE_API_URL}/api/admin/products/${id}/stock`, 
-        { stock: Number(newStock) },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await adminUpdateStockAPI(id, { stock: Number(newStock) });
       toast.success('Stock updated');
       fetchProducts(pagination.page);
     } catch (err) {
@@ -190,6 +177,13 @@ export default function ProductsManagement() {
                   <td className="p-4">
                     <p className="font-medium max-w-[250px] truncate text-luxury-white">{product.title}</p>
                     <p className="text-xs text-luxury-gray">{product.brand} • {product.category}</p>
+                    {(product.sizes?.length > 0 || product.colors?.length > 0) && (
+                      <p className="text-[10px] text-luxury-gray/70 mt-1 uppercase tracking-widest">
+                        {product.sizes?.length > 0 && `Sizes: ${product.sizes.join(', ')}`}
+                        {product.sizes?.length > 0 && product.colors?.length > 0 && ' | '}
+                        {product.colors?.length > 0 && `Colors: ${product.colors.join(', ')}`}
+                      </p>
+                    )}
                   </td>
                   <td className="p-4 text-luxury-gold font-medium">₹{product.price?.toLocaleString()}</td>
                   <td className="p-4">

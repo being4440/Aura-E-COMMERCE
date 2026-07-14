@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import { adminGetDashboardStatsAPI, adminGetRecentOrdersAPI, adminGetTopProductsAPI } from '../api/api';
 import { toast } from 'react-hot-toast';
 import { FiUsers, FiBox, FiShoppingBag, FiDollarSign, FiClock, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
 import dayjs from 'dayjs';
@@ -15,13 +15,11 @@ export default function AdminDashboard() {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const token = localStorage.getItem('token');
-        const headers = { Authorization: `Bearer ${token}` };
 
         const [statsRes, ordersRes, productsRes] = await Promise.all([
-          axios.get(`${import.meta.env.VITE_API_URL}/api/admin/dashboard/stats`, { headers }),
-          axios.get(`${import.meta.env.VITE_API_URL}/api/admin/dashboard/recent-orders`, { headers }),
-          axios.get(`${import.meta.env.VITE_API_URL}/api/admin/dashboard/top-products`, { headers })
+          adminGetDashboardStatsAPI(),
+          adminGetRecentOrdersAPI(),
+          adminGetTopProductsAPI()
         ]);
 
         if (statsRes.data.success) setStats(statsRes.data.data);
@@ -133,6 +131,13 @@ export default function AdminDashboard() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-luxury-white truncate">{item.product?.title}</p>
                   <p className="text-xs text-luxury-gray">₹{item.product?.price?.toLocaleString()}</p>
+                  {(item.product?.sizes?.length > 0 || item.product?.colors?.length > 0) && (
+                    <p className="text-[10px] text-luxury-gray/70 uppercase tracking-widest mt-0.5 truncate">
+                      {item.product.sizes?.length > 0 && `Sizes: ${item.product.sizes.join(', ')}`}
+                      {item.product.sizes?.length > 0 && item.product.colors?.length > 0 && ' | '}
+                      {item.product.colors?.length > 0 && `Colors: ${item.product.colors.join(', ')}`}
+                    </p>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-bold text-luxury-gold">{item.unitsSold}</p>

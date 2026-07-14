@@ -24,6 +24,7 @@ import ProductForm from './pages/admin/ProductForm.jsx';
 import OrdersPage from './pages/OrdersPage.jsx';
 import OrderConfirmation from './pages/OrderConfirmation.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
+import AdminProtectedRoute from './components/AdminProtectedRoute.jsx';
 import InfoPage from './components/InfoPage.jsx';
 import AdminOrdersList from './pages/admin/AdminOrdersList.jsx';
 import AdminOrderDetail from './pages/admin/AdminOrderDetail.jsx';
@@ -75,7 +76,7 @@ function App() {
             <Route path="/login" element={<Login handleLoginSuccess={handleLoginSuccess} />} />
             <Route path="/register" element={<Register />} />
             <Route path="/admin/login" element={<AdminLogin handleLoginSuccess={handleLoginSuccess} />} />
-            <Route path="/admin" element={<AdminLayout handleLogout={handleLogout} />}>
+            <Route path="/admin" element={<AdminProtectedRoute><AdminLayout handleLogout={handleLogout} /></AdminProtectedRoute>}>
               <Route index element={<AdminDashboard />} />
               <Route path="analytics" element={<AdminAnalytics />} />
               <Route path="orders" element={<AdminOrdersList />} />

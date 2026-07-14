@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api/api';
 import { toast } from 'react-hot-toast';
 import { FiShield, FiEye, FiEyeOff } from 'react-icons/fi';
 import { useAuth } from '../hooks/useAuth';
@@ -10,6 +10,7 @@ export default function AdminLogin({ handleLoginSuccess }) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   const { updateUser } = useAuth(); // Assuming updateUser sets user in context/store
 
@@ -18,7 +19,8 @@ export default function AdminLogin({ handleLoginSuccess }) {
     setError('');
 
     try {
-      const response = await axios.post('http://localhost:5000/api/admin/login', { username, password });
+      setIsSubmitting(true);
+      const response = await api.post('/admin/login', { username, password });
       const { data } = response.data;
       
       localStorage.setItem('token', data.accessToken);
@@ -32,6 +34,8 @@ export default function AdminLogin({ handleLoginSuccess }) {
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to login');
       // Shake animation can be implemented by adding a class conditionally
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -82,8 +86,8 @@ export default function AdminLogin({ handleLoginSuccess }) {
             </button>
           </div>
 
-          <button type="submit" className="w-full bg-orange-500 hover:bg-orange-600 text-white font-poppins tracking-wider uppercase text-sm py-4 mt-6 transition-colors rounded">
-            Sign In as Admin
+          <button type="submit" disabled={isSubmitting} className="w-full bg-orange-500 hover:bg-orange-600 text-white font-poppins tracking-wider uppercase text-sm py-4 mt-6 transition-colors rounded disabled:opacity-50">
+            {isSubmitting ? 'Signing in...' : 'Sign In as Admin'}
           </button>
         </form>
 

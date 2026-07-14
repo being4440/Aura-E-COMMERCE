@@ -28,20 +28,16 @@ const AddToCartButton = ({ product }) => {
       return;
     }
 
-    const productData = {
-      productId: product._id,
-      name: product.title || product.name,
-      price: product.price,
-      image: product.images?.[0] || product.image || '',
-      brand: product.brand || '',
-      maxStock: product.stock || product.maxStock
+    const payload = {
+      ...product,
+      productId: product._id || product.id || product.productId
     };
 
     // ⚡ Update UI instantly — no waiting for network
-    dispatch(optimisticAdd(productData));
+    dispatch(optimisticAdd(payload));
 
     // Fire API in background — sync real _id from server
-    const result = await dispatch(addToCart(productData));
+    const result = await dispatch(addToCart(payload));
     if (addToCart.fulfilled.match(result)) {
       toast.success('✓ Added to cart!');
     } else {

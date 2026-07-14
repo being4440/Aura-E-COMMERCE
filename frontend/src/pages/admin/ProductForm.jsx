@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { getProductByIdAPI, adminAddProductAPI, adminUpdateProductAPI, adminGetCategoriesAPI } from '../../api/api';
 import toast from 'react-hot-toast';
 import { FiArrowLeft, FiUploadCloud, FiX } from 'react-icons/fi';
 
@@ -32,10 +32,7 @@ export default function ProductForm() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/categories`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await adminGetCategoriesAPI();
         if (res.data.success) {
           setCategories(res.data.data);
           // Set default category if creating new
@@ -54,10 +51,7 @@ export default function ProductForm() {
     if (isEditing) {
       const fetchProduct = async () => {
         try {
-          const token = localStorage.getItem('token');
-          const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/products/${id}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
+          const res = await getProductByIdAPI(id);
           if (res.data.success) {
             const p = res.data.data;
             setFormData({
@@ -115,7 +109,6 @@ export default function ProductForm() {
     e.preventDefault();
     try {
       setSubmitting(true);
-      const token = localStorage.getItem('token');
       
       const submitData = new FormData();
       Object.keys(formData).forEach(key => submitData.append(key, formData[key]));
@@ -125,20 +118,10 @@ export default function ProductForm() {
       });
 
       if (isEditing) {
-        await axios.put(`${import.meta.env.VITE_API_URL}/api/admin/products/${id}`, submitData, {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
-          }
-        });
+        await adminUpdateProductAPI(id, submitData);
         toast.success('Product updated successfully');
       } else {
-        await axios.post(`${import.meta.env.VITE_API_URL}/api/admin/products`, submitData, {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
-          }
-        });
+        await adminAddProductAPI(submitData);
         toast.success('Product created successfully');
       }
       navigate('/admin/products');

@@ -31,25 +31,44 @@ const CartPage = () => {
   useEffect(() => {
     const validateCart = async () => {
       isValidatingRef.current = true;
-      for (const item of items) {
+      
+      const checks = items.map(async (item) => {
         try {
-          const productId = item.product?.productId || item.product?._id || item.product;
-          if (!productId) continue;
+          // Fallback to title instead of name based on Product schema
+          const productId = item.product?._id || item.product?.productId || (typeof item.product === 'string' ? item.product : null);
+          if (!productId) return null;
           
           const res = await checkProductStockAPI(productId);
           const { stock } = res.data.data;
 
           if (stock === 0) {
-            toast.error(`${item.product?.name || 'Item'} is out of stock and was removed`);
-            dispatch(removeFromCart(item._id || item.id));
+            return { action: 'remove', item, stock };
           } else if (item.quantity > stock) {
-            toast.error(`${item.product?.name || 'Item'} quantity reduced to ${stock}`);
-            dispatch(updateQuantity({ itemId: item._id || item.id, quantity: stock }));
+            return { action: 'update', item, stock };
           }
         } catch (error) {
           console.error("Error validating cart item stock", error);
         }
+        return null;
+      });
+
+      // Fire all API checks concurrently
+      const results = await Promise.all(checks);
+      const invalidItems = results.filter(Boolean);
+
+      if (invalidItems.length > 0) {
+        // Fire all correction dispatches concurrently
+        await Promise.all(invalidItems.map(({ action, item, stock }) => {
+          if (action === 'remove') {
+            toast.error(`${item.product?.title || 'Item'} is out of stock and was removed`);
+            return dispatch(removeFromCart(item._id || item.id));
+          } else if (action === 'update') {
+            toast.error(`${item.product?.title || 'Item'} quantity reduced to ${stock}`);
+            return dispatch(updateQuantity({ itemId: item._id || item.id, quantity: stock }));
+          }
+        }));
       }
+
       setIsValidated(true);
       isValidatingRef.current = false;
     };

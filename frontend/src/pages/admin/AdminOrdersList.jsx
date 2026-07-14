@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import { adminGetOrdersAPI } from '../../api/api';
 import { toast } from 'react-hot-toast';
 import { FiSearch, FiEye, FiFilter, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 
@@ -37,7 +37,6 @@ export default function AdminOrdersList() {
   const fetchOrders = async (page = 1) => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
       
       const params = new URLSearchParams({
         page,
@@ -51,9 +50,7 @@ export default function AdminOrdersList() {
       if (paymentMethodFilter) params.append('paymentMethod', paymentMethodFilter);
       if (returnStatusFilter) params.append('returnStatus', returnStatusFilter);
 
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/orders?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await adminGetOrdersAPI(params);
       
       if (res.data.success) {
         setOrders(res.data.data);

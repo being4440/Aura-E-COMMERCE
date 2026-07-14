@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { adminGetOrderByIdAPI, adminUpdateOrderStatusAPI, adminCancelOrderAPI, adminReturnOrderAPI, adminGenerateInvoiceAPI } from '../../api/api';
 import { toast } from 'react-hot-toast';
 import { FiArrowLeft, FiDownload, FiXCircle, FiCheck, FiRefreshCcw, FiFileText } from 'react-icons/fi';
 
@@ -46,10 +46,7 @@ export default function AdminOrderDetail() {
 
   const fetchOrder = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/orders/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await adminGetOrderByIdAPI(id);
       if (res.data.success) {
         setOrder(res.data.data);
       }
@@ -68,12 +65,7 @@ export default function AdminOrderDetail() {
   const handleUpdateStatus = async (newStatus) => {
     try {
       setIsUpdating(true);
-      const token = localStorage.getItem('token');
-      const res = await axios.patch(
-        `${import.meta.env.VITE_API_URL}/api/admin/orders/${id}/status`,
-        { status: newStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await adminUpdateOrderStatusAPI(id, newStatus);
       if (res.data.success) {
         toast.success(`Order marked as ${formatStatus(newStatus)}`);
         fetchOrder();
@@ -88,12 +80,7 @@ export default function AdminOrderDetail() {
   const handleCancelOrder = async () => {
     try {
       setIsUpdating(true);
-      const token = localStorage.getItem('token');
-      const res = await axios.patch(
-        `${import.meta.env.VITE_API_URL}/api/admin/orders/${id}/cancel`,
-        { cancelReason },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await adminCancelOrderAPI(id, cancelReason);
       if (res.data.success) {
         toast.success('Order cancelled and stock restored');
         setShowCancelModal(false);
@@ -109,12 +96,7 @@ export default function AdminOrderDetail() {
   const handleReturnAction = async (newReturnStatus) => {
     try {
       setIsUpdating(true);
-      const token = localStorage.getItem('token');
-      const res = await axios.patch(
-        `${import.meta.env.VITE_API_URL}/api/admin/orders/${id}/return`,
-        { returnStatus: newReturnStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await adminReturnOrderAPI(id, { returnStatus: newReturnStatus });
       if (res.data.success) {
         toast.success(`Return status updated to ${newReturnStatus}`);
         fetchOrder();
@@ -129,12 +111,7 @@ export default function AdminOrderDetail() {
   const handleGenerateInvoice = async () => {
     try {
       setIsUpdating(true);
-      const token = localStorage.getItem('token');
-      const res = await axios.patch(
-        `${import.meta.env.VITE_API_URL}/api/admin/orders/${id}/generate-invoice`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await adminGenerateInvoiceAPI(id);
       if (res.data.success) {
         toast.success('Invoice generated successfully');
         fetchOrder();
@@ -272,6 +249,13 @@ export default function AdminOrderDetail() {
                           <div>
                             <p className="font-medium line-clamp-1">{item.productId?.title || 'Deleted Product'}</p>
                             <p className="text-xs text-luxury-gray">{item.productId?.brand}</p>
+                            {(item.productId?.size || item.productId?.color) && (
+                              <p className="text-[10px] text-luxury-gray/70 mt-0.5 uppercase tracking-widest">
+                                {item.productId.size && `Size: ${item.productId.size}`}
+                                {item.productId.size && item.productId.color && ' | '}
+                                {item.productId.color && `Color: ${item.productId.color}`}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </td>

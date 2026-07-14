@@ -1,99 +1,92 @@
 const Review = require('../models/Review');
 const { updateProductRating } = require('./reviewController');
 
-exports.getReviews = async (req, res) => {
-  try {
-    const { 
-      page = 1, 
-      limit = 10, 
-      rating,
-      isHidden,
-      productId,
-      sortBy = 'createdAt', 
-      sortOrder = 'desc' 
-    } = req.query;
+const asyncHandler = require("../middleware/asyncHandler");
 
-    const query = {};
+exports.getReviews = asyncHandler(async (req, res) => {
+  const { 
+    page = 1, 
+    limit = 10, 
+    rating,
+    isHidden,
+    productId,
+    sortBy = 'createdAt', 
+    sortOrder = 'desc' 
+  } = req.query;
 
-    if (rating) query.rating = Number(rating);
-    if (isHidden !== undefined) query.isHidden = isHidden === 'true';
-    if (productId) query.product = productId;
+  const query = {};
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const sortObj = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
+  if (rating) query.rating = Number(rating);
+  if (isHidden !== undefined) query.isHidden = isHidden === 'true';
+  if (productId) query.product = productId;
 
-    const reviews = await Review.find(query)
-      .populate('user', 'username email')
-      .populate('product', 'title images')
-      .sort(sortObj)
-      .skip(skip)
-      .limit(parseInt(limit));
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const sortObj = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
 
-    const totalReviews = await Review.countDocuments(query);
+  const reviews = await Review.find(query)
+    .populate('user', 'username email')
+    .populate('product', 'title images')
+    .sort(sortObj)
+    .skip(skip)
+    .limit(parseInt(limit));
 
-    res.status(200).json({
-      success: true,
-      data: reviews,
-      pagination: {
-        total: totalReviews,
-        page: parseInt(page),
-        pages: Math.ceil(totalReviews / limit)
-      }
-    });
+  const totalReviews = await Review.countDocuments(query);
 
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-exports.toggleHideReview = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { isHidden, flaggedReason } = req.body;
-
-    const review = await Review.findById(id);
-    if (!review) {
-      return res.status(404).json({ success: false, message: 'Review not found' });
+  res.status(200).json({
+    success: true,
+    data: reviews,
+    pagination: {
+      total: totalReviews,
+      page: parseInt(page),
+      pages: Math.ceil(totalReviews / limit)
     }
+  });
+});
 
-    review.isHidden = isHidden;
-    review.flaggedReason = isHidden ? (flaggedReason || 'Hidden by Admin') : null;
+exports.toggleHideReview = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { isHidden, flaggedReason } = req.body;
 
-    await review.save();
-    
-    // Recalculate product rating to exclude/include this review
-    await updateProductRating(review.product);
-
-    res.status(200).json({
-      success: true,
-      message: `Review successfully ${isHidden ? 'hidden' : 'unhidden'}`,
-      data: review
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+  const review = await Review.findById(id);
+  if (!review) {
+    const error = new Error('Review not found');
+    error.status = 404;
+    throw error;
   }
-};
 
-exports.deleteSpamReview = async (req, res) => {
-  try {
-    const { id } = req.params;
+  review.isHidden = isHidden;
+  review.flaggedReason = isHidden ? (flaggedReason || 'Hidden by Admin') : null;
 
-    const review = await Review.findById(id);
-    if (!review) {
-      return res.status(404).json({ success: false, message: 'Review not found' });
-    }
+  await review.save();
 
-    const productId = review.product;
-    await review.deleteOne();
-    
-    // Recalculate product rating since review is gone
-    await updateProductRating(productId);
+  // Recalculate product rating to exclude/include this review
+  await updateProductRating(review.product);
 
-    res.status(200).json({
-      success: true,
-      message: 'Spam review permanently deleted.'
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+  res.status(200).json({
+    success: true,
+    message: `Review successfully ${isHidden ? 'hidden' : 'unhidden'}`,
+    data: review
+  });
+});
+
+exports.deleteSpamReview = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const review = await Review.findById(id);
+  if (!review) {
+    const error = new Error('Review not found');
+    error.status = 404;
+    throw error;
   }
-};
+
+  const productId = review.product;
+  await review.deleteOne();
+
+  // Recalculate product rating since review is gone
+  await updateProductRating(productId);
+
+  res.status(200).json({
+    success: true,
+    message: 'Spam review permanently deleted.'
+  });
+});

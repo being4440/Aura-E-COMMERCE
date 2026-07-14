@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api/api';
 import { motion } from 'framer-motion';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
 
@@ -14,6 +14,7 @@ export default function Register() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -36,10 +37,13 @@ export default function Register() {
     }
     
     try {
-      await axios.post('http://localhost:5000/api/auth/register', formData);
+      setIsSubmitting(true);
+      await api.post('/auth/register', formData);
       navigate('/login');
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -176,8 +180,8 @@ export default function Register() {
 
 
 
-            <button type="submit" className="w-full btn-primary py-4 mt-6">
-              Create Account
+            <button type="submit" disabled={isSubmitting} className="w-full btn-primary py-4 mt-6 disabled:opacity-50">
+              {isSubmitting ? 'Creating Account...' : 'Create Account'}
             </button>
           </form>
 

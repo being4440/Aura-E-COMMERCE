@@ -2,6 +2,8 @@ const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
+const asyncHandler = require("../middleware/asyncHandler");
+
 // Wrapper for async errors
 const catchAsync = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
@@ -12,16 +14,22 @@ exports.adminLogin = catchAsync(async (req, res) => {
   const user = await User.findOne({ username });
 
   if (!user) {
-    return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    const error = new Error('Invalid credentials');
+    error.status = 401;
+    throw error;
   }
 
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {
-    return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    const error = new Error('Invalid credentials');
+    error.status = 401;
+    throw error;
   }
 
   if (user.role !== 'admin') {
-    return res.status(403).json({ success: false, message: 'Not an admin account' });
+    const error = new Error('Not an admin account');
+    error.status = 403;
+    throw error;
   }
 
   const payload = { user: { id: user._id, role: user.role } };

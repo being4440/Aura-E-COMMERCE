@@ -9,7 +9,7 @@ const CartItem = ({ item }) => {
   // Support both _id (Mongoose subdoc) and id (serialized)
   const itemId = item._id || item.id;
   const { product, quantity } = item;
-  const priceToUse = product.price;
+  const priceToUse = product?.price ?? 0;
 
   const handleDecrease = async () => {
     if (quantity === 1) {
@@ -27,7 +27,7 @@ const CartItem = ({ item }) => {
   };
 
   const handleIncrease = async () => {
-    const maxQty = product.stock ?? 10;
+    const maxQty = product?.stock ?? 10;
     if (quantity < maxQty) {
       // ⚡ Instant UI update
       dispatch(optimisticUpdateQty({ itemId, quantity: quantity + 1 }));
@@ -55,8 +55,8 @@ const CartItem = ({ item }) => {
   return (
     <div className="flex flex-col sm:flex-row gap-4 py-4 border-b border-gray-700/50 relative">
       <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gray-800 rounded flex-shrink-0 overflow-hidden">
-        {product.image ? (
-          <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+        {product?.images?.[0] ? (
+          <img src={product.images[0]} alt={product?.title || 'Item'} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">No Image</div>
         )}
@@ -65,7 +65,7 @@ const CartItem = ({ item }) => {
       <div className="flex-1 flex flex-col justify-between">
         <div>
           <div className="flex justify-between items-start">
-            <h3 className="text-lg font-medium text-white">{product.name}</h3>
+            <h3 className="text-lg font-medium text-white">{product?.title || 'Unknown Product'}</h3>
             <button
               onClick={handleRemove}
               className="text-gray-400 hover:text-red-500 p-1 transition-colors"
@@ -74,10 +74,10 @@ const CartItem = ({ item }) => {
               <FiTrash2 size={18} />
             </button>
           </div>
-          {product.brand && <p className="text-sm text-gray-400 mb-1">{product.brand}</p>}
+          {product?.brand && <p className="text-sm text-gray-400 mb-1">{product.brand}</p>}
           <div className="flex gap-3 text-xs text-gray-500 mb-2">
-            {product.size && <span>Size: {product.size}</span>}
-            {product.color && <span>Color: {product.color}</span>}
+            {(item.size || product?.size) && <span className="uppercase">Size: {item.size || product.size}</span>}
+            {(item.color || product?.color) && <span className="uppercase">Color: {item.color || product.color}</span>}
           </div>
         </div>
 

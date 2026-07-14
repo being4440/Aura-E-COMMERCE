@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { adminGetReviewsAPI, adminUpdateReviewHideAPI, adminDeleteReviewAPI } from '../../api/api';
 import { toast } from 'react-hot-toast';
 import { FiEyeOff, FiEye, FiTrash2, FiStar, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import dayjs from 'dayjs';
@@ -15,7 +15,6 @@ export default function AdminReviewsList() {
   const fetchReviews = async (page = 1) => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
       
       const params = new URLSearchParams({
         page,
@@ -25,9 +24,7 @@ export default function AdminReviewsList() {
       if (ratingFilter) params.append('rating', ratingFilter);
       if (hiddenFilter !== '') params.append('isHidden', hiddenFilter);
 
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/reviews?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await adminGetReviewsAPI(params);
       
       if (res.data.success) {
         setReviews(res.data.data);
@@ -49,18 +46,13 @@ export default function AdminReviewsList() {
     if (!window.confirm(`Are you sure you want to ${action} this review?`)) return;
     
     try {
-      const token = localStorage.getItem('token');
       let reason = '';
       if (!currentIsHidden) {
         reason = window.prompt('Enter a reason for hiding this review (optional):');
         if (reason === null) return;
       }
 
-      const res = await axios.patch(
-        `${import.meta.env.VITE_API_URL}/api/admin/reviews/${id}/hide`,
-        { isHidden: !currentIsHidden, flaggedReason: reason },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await adminUpdateReviewHideAPI(id, { isHidden: !currentIsHidden, flaggedReason: reason });
       
       if (res.data.success) {
         toast.success(res.data.message);
@@ -75,11 +67,7 @@ export default function AdminReviewsList() {
     if (!window.confirm('WARNING: Hard deleting a review should only be done for SPAM or inappropriate content. Are you sure you want to permanently delete this review?')) return;
     
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.delete(
-        `${import.meta.env.VITE_API_URL}/api/admin/reviews/${id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await adminDeleteReviewAPI(id);
       
       if (res.data.success) {
         toast.success(res.data.message);
