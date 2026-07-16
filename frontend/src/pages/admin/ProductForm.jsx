@@ -34,10 +34,11 @@ export default function ProductForm() {
       try {
         const res = await adminGetCategoriesAPI();
         if (res.data.success) {
-          setCategories(res.data.data);
+          const activeCategories = res.data.data.filter(cat => cat.isActive !== false);
+          setCategories(activeCategories);
           // Set default category if creating new
-          if (!isEditing && res.data.data.length > 0) {
-            setFormData(prev => ({ ...prev, category: res.data.data[0].name }));
+          if (!isEditing && activeCategories.length > 0) {
+            setFormData(prev => ({ ...prev, category: activeCategories[0].name }));
           }
         }
       } catch (error) {

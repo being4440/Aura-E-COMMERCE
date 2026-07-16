@@ -44,7 +44,6 @@ export default function AdminDashboard() {
     { title: 'Total Orders', value: stats?.totalOrders || 0, icon: <FiShoppingBag size={24} />, color: 'text-blue-500', bg: 'bg-blue-500/10 border-blue-500/20' },
     { title: 'Total Users', value: stats?.totalUsers || 0, icon: <FiUsers size={24} />, color: 'text-purple-500', bg: 'bg-purple-500/10 border-purple-500/20' },
     { title: 'Active Products', value: stats?.totalProducts || 0, icon: <FiBox size={24} />, color: 'text-luxury-gold', bg: 'bg-luxury-gold/10 border-luxury-gold/20' },
-    { title: 'Pending Orders', value: stats?.pendingOrders || 0, icon: <FiClock size={24} />, color: 'text-yellow-500', bg: 'bg-yellow-500/10 border-yellow-500/20' },
     { title: 'Delivered Orders', value: stats?.deliveredOrders || 0, icon: <FiCheckCircle size={24} />, color: 'text-emerald-500', bg: 'bg-emerald-500/10 border-emerald-500/20' },
     { title: 'Out of Stock', value: stats?.outOfStockProducts || 0, icon: <FiAlertCircle size={24} />, color: 'text-red-500', bg: 'bg-red-500/10 border-red-500/20' }
   ];

@@ -21,18 +21,33 @@ const Checkout = () => {
   });
   const [paymentInfo, setPaymentInfo] = useState('stripe');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [formErrors, setFormErrors] = useState({ mobile: '', pincode: '' });
 
   const shipping = totalPrice > 499 || totalPrice === 0 ? 0 : 49;
   const finalTotal = totalPrice + shipping;
 
   const handlePlaceOrder = async (e) => {
     e.preventDefault();
-    if (!address.fullName || !address.mobile || !address.street || !address.pincode || !address.city || !address.state) {
-      return toast.error('Please complete your shipping address');
+    
+    let hasError = false;
+    const newErrors = { mobile: '', pincode: '' };
+
+    if (address.mobile.length !== 10) {
+      newErrors.mobile = 'Mobile number must be exactly 10 digits';
+      hasError = true;
+    }
+    
+    if (address.pincode.length !== 6) {
+      newErrors.pincode = 'Pincode must be exactly 6 digits';
+      hasError = true;
     }
 
-    if (!/^\d{6}$/.test(address.pincode)) {
-      return toast.error('Pincode must be exactly 6 digits');
+    setFormErrors(newErrors);
+    
+    if (hasError) return;
+
+    if (!address.fullName || !address.mobile || !address.street || !address.pincode || !address.city || !address.state) {
+      return toast.error('Please complete your shipping address');
     }
 
     try {
@@ -96,11 +111,17 @@ const Checkout = () => {
             <label className="block text-gray-400 mb-2 font-medium">Shipping Address</label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <input type="text" placeholder="Full Name" required minLength="3" maxLength="50" value={address.fullName} onChange={(e) => setAddress({...address, fullName: e.target.value})} className="bg-gray-800 text-white border border-gray-700 rounded-lg p-3 focus:outline-none focus:border-blue-500" />
-              <input type="tel" placeholder="Mobile Number" required pattern="^[6-9]\d{9}$" title="Valid 10-digit Indian mobile number" value={address.mobile} onChange={(e) => setAddress({...address, mobile: e.target.value})} className="bg-gray-800 text-white border border-gray-700 rounded-lg p-3 focus:outline-none focus:border-blue-500" />
+              <div>
+                <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="Mobile Number" required title="10-digit mobile number" value={address.mobile} onChange={(e) => { const val = e.target.value.replace(/\D/g, '').slice(0, 10); setAddress({...address, mobile: val}); if(formErrors.mobile) setFormErrors({...formErrors, mobile: ''}); }} className="w-full bg-gray-800 text-white border border-gray-700 rounded-lg p-3 focus:outline-none focus:border-blue-500" />
+                {formErrors.mobile && <span className="text-red-500 text-sm mt-1 block">{formErrors.mobile}</span>}
+              </div>
             </div>
             <textarea placeholder="Full Street Address" required minLength="10" maxLength="200" value={address.street} onChange={(e) => setAddress({...address, street: e.target.value})} className="w-full bg-gray-800 text-white border border-gray-700 rounded-lg p-3 mt-4 focus:outline-none focus:border-blue-500" rows="3"></textarea>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-              <input type="text" placeholder="Pincode" required pattern="^\d{6}$" title="6-digit Pincode" value={address.pincode} onChange={(e) => setAddress({...address, pincode: e.target.value})} className="bg-gray-800 text-white border border-gray-700 rounded-lg p-3 focus:outline-none focus:border-blue-500" />
+              <div>
+                <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="Pincode" required title="6-digit Pincode" value={address.pincode} onChange={(e) => { const val = e.target.value.replace(/\D/g, '').slice(0, 6); setAddress({...address, pincode: val}); if(formErrors.pincode) setFormErrors({...formErrors, pincode: ''}); }} className="w-full bg-gray-800 text-white border border-gray-700 rounded-lg p-3 focus:outline-none focus:border-blue-500" />
+                {formErrors.pincode && <span className="text-red-500 text-sm mt-1 block">{formErrors.pincode}</span>}
+              </div>
               <input type="text" placeholder="City" required pattern="^[a-zA-Z\s]+$" title="Only letters allowed" value={address.city} onChange={(e) => setAddress({...address, city: e.target.value})} className="bg-gray-800 text-white border border-gray-700 rounded-lg p-3 focus:outline-none focus:border-blue-500" />
               <input type="text" placeholder="State" required value={address.state} onChange={(e) => setAddress({...address, state: e.target.value})} className="bg-gray-800 text-white border border-gray-700 rounded-lg p-3 focus:outline-none focus:border-blue-500" />
             </div>
