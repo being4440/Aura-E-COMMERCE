@@ -1,4 +1,5 @@
 const Product = require('../models/Product');
+const Category = require('../models/Category');
 const mongoose = require('mongoose');
 
 const asyncHandler = require("../middleware/asyncHandler");
@@ -12,7 +13,14 @@ exports.getProducts = asyncHandler(async (req, res) => {
   // Always filter active products
   let filter = { isActive: true };
 
-  if (category) filter.category = category;
+  if (category) {
+    const catDoc = await Category.findOne({ name: category });
+    if (catDoc) {
+      filter.category = catDoc._id;
+    } else {
+      filter.category = null;
+    }
+  }
   if (brand) filter.brand = { $regex: brand, $options: 'i' };
 
   if (minPrice || maxPrice) {
@@ -56,8 +64,9 @@ exports.getProducts = asyncHandler(async (req, res) => {
   if (limitNum > 100) limitNum = 100;
   const skip = (pageNum - 1) * limitNum;
 
-  const [products, total] = await Promise.all([
+  const [productsRaw, total] = await Promise.all([
     Product.find(filter)
+      .populate('category', 'name')
       .sort(sortObj)
       .skip(skip)
       .limit(limitNum)
@@ -65,6 +74,14 @@ exports.getProducts = asyncHandler(async (req, res) => {
       .exec(),
     Product.countDocuments(filter)
   ]);
+
+  const products = productsRaw.map(p => {
+    const pObj = p.toJSON();
+    if (pObj.category && typeof pObj.category === 'object') {
+      pObj.category = pObj.category.name;
+    }
+    return pObj;
+  });
 
   res.json({
     success: true,
@@ -90,7 +107,7 @@ exports.getProductById = asyncHandler(async (req, res) => {
     error.status = 400;
     throw error;
   }
-  const product = await Product.findOne({ _id: req.params.id, isActive: true });
+  const product = await Product.findOne({ _id: req.params.id, isActive: true }).populate('category', 'name');
 
   if (!product) {
     const error = new Error('Product not found');
@@ -99,15 +116,26 @@ exports.getProductById = asyncHandler(async (req, res) => {
   }
 
   // Related products (same category, excluding current)
-  const relatedProducts = await Product.find({
-    category: product.category,
+  const relatedProductsRaw = await Product.find({
+    category: product.category?._id || product.category,
     _id: { $ne: product._id },
     isActive: true,
     stock: { $gt: 0 }
-  }).limit(6);
+  }).populate('category', 'name').limit(6);
+
+  const relatedProducts = relatedProductsRaw.map(p => {
+    const pObj = p.toJSON();
+    if (pObj.category && typeof pObj.category === 'object') {
+      pObj.category = pObj.category.name;
+    }
+    return pObj;
+  });
 
   // Return exact stock, virtual, and isInStock result
   const productData = product.toJSON();
+  if (productData.category && typeof productData.category === 'object') {
+    productData.category = productData.category.name;
+  }
   productData.availableStock = product.availableStock;
   productData.isInStock = product.isInStock();
 
@@ -124,9 +152,18 @@ exports.getProductById = asyncHandler(async (req, res) => {
 // @route   GET /api/products/featured
 // @access  Public
 exports.getFeaturedProducts = asyncHandler(async (req, res) => {
-  const products = await Product.find({ featured: true, isActive: true })
+  const productsRaw = await Product.find({ featured: true, isActive: true })
+    .populate('category', 'name')
     .sort({ sold: -1 })
     .limit(8);
+
+  const products = productsRaw.map(p => {
+    const pObj = p.toJSON();
+    if (pObj.category && typeof pObj.category === 'object') {
+      pObj.category = pObj.category.name;
+    }
+    return pObj;
+  });
 
   res.json({ success: true, data: products });
 });
@@ -135,9 +172,18 @@ exports.getFeaturedProducts = asyncHandler(async (req, res) => {
 // @route   GET /api/products/new-arrivals
 // @access  Public
 exports.getNewArrivals = asyncHandler(async (req, res) => {
-  const products = await Product.find({ isActive: true })
+  const productsRaw = await Product.find({ isActive: true })
+    .populate('category', 'name')
     .sort({ createdAt: -1 })
     .limit(12);
+
+  const products = productsRaw.map(p => {
+    const pObj = p.toJSON();
+    if (pObj.category && typeof pObj.category === 'object') {
+      pObj.category = pObj.category.name;
+    }
+    return pObj;
+  });
 
   res.json({ success: true, data: products });
 });

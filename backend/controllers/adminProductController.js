@@ -1,4 +1,5 @@
 const Product = require('../models/Product');
+const Category = require('../models/Category');
 const Order = require('../models/Order');
 const { uploadImage, deleteImage } = require('../utils/cloudinary');
 const mongoose = require('mongoose');
@@ -20,7 +21,11 @@ exports.getAdminProducts = asyncHandler(async (req, res) => {
 
   const query = {};
 
-  if (category) query.category = category;
+  if (category) {
+    const catDoc = await Category.findOne({ name: category });
+    if (catDoc) query.category = catDoc._id;
+    else query.category = null;
+  }
   if (isActive !== undefined) query.isActive = isActive === 'true';
 
   // Stock Status Logic
@@ -46,10 +51,19 @@ exports.getAdminProducts = asyncHandler(async (req, res) => {
   const skip = (parseInt(page) - 1) * parseInt(limit);
 
   console.log("Admin get products query:", query);
-  const products = await Product.find(query)
+  const productsRaw = await Product.find(query)
+    .populate('category', 'name')
     .sort(sortObj)
     .skip(skip)
     .limit(parseInt(limit));
+    
+  const products = productsRaw.map(p => {
+    const pObj = p.toJSON();
+    if (pObj.category && typeof pObj.category === 'object') {
+      pObj.category = pObj.category.name;
+    }
+    return pObj;
+  });
   console.log("Admin get products returned length:", products.length);
 
   const totalProducts = await Product.countDocuments(query);
@@ -75,12 +89,17 @@ exports.getAdminProductById = asyncHandler(async (req, res) => {
     throw error;
   }
 
-  const product = await Product.findById(req.params.id);
+  const productRaw = await Product.findById(req.params.id).populate('category', 'name');
 
-  if (!product) {
+  if (!productRaw) {
     const error = new Error('Product not found');
     error.status = 404;
     throw error;
+  }
+
+  const product = productRaw.toJSON();
+  if (product.category && typeof product.category === 'object') {
+    product.category = product.category.name;
   }
 
   res.status(200).json({ success: true, data: product });
@@ -89,6 +108,12 @@ exports.getAdminProductById = asyncHandler(async (req, res) => {
 // POST Create Product
 exports.createProduct = asyncHandler(async (req, res) => {
   const { title, description, category, brand, price, stock, sizes, colors, isActive, featured } = req.body;
+
+  let categoryId = category;
+  if (category) {
+    const catDoc = await Category.findOne({ name: category });
+    if (catDoc) categoryId = catDoc._id;
+  }
 
   const imageUrls = [];
   if (req.files && req.files.length > 0) {
@@ -101,7 +126,7 @@ exports.createProduct = asyncHandler(async (req, res) => {
   const product = new Product({
     title,
     description,
-    category,
+    category: categoryId,
     brand,
     price: Number(price),
     stock: Number(stock),
@@ -121,6 +146,12 @@ exports.createProduct = asyncHandler(async (req, res) => {
 exports.updateProduct = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { title, description, category, brand, price, stock, sizes, colors, isActive, featured } = req.body;
+
+  let categoryId = category;
+  if (category) {
+    const catDoc = await Category.findOne({ name: category });
+    if (catDoc) categoryId = catDoc._id;
+  }
 
   const product = await Product.findById(id);
   if (!product) {
@@ -148,7 +179,7 @@ exports.updateProduct = asyncHandler(async (req, res) => {
 
   product.title = title || product.title;
   product.description = description || product.description;
-  product.category = category || product.category;
+  if (categoryId) product.category = categoryId;
   product.brand = brand || product.brand;
   product.price = price !== undefined ? Number(price) : product.price;
   product.stock = stock !== undefined ? Number(stock) : product.stock;

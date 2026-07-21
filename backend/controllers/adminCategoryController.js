@@ -6,7 +6,7 @@ exports.getCategories = asyncHandler(async (req, res) => {
   const Product = require('../models/Product');
   
   for (let cat of categories) {
-    cat.itemCount = await Product.countDocuments({ category: cat.name });
+    cat.itemCount = await Product.countDocuments({ category: cat._id });
   }
   
   res.status(200).json({ success: true, data: categories });
