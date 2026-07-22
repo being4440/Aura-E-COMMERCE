@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { adminGetAuditLogsAPI } from '../../api/api';
 import { toast } from 'react-hot-toast';
-import { FiChevronLeft, FiChevronRight, FiSearch } from 'react-icons/fi';
+import { FiChevronLeft, FiChevronRight, FiSearch, FiCopy } from 'react-icons/fi';
 import dayjs from 'dayjs';
 
 export default function AdminAuditLogs() {
@@ -11,6 +11,7 @@ export default function AdminAuditLogs() {
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   
   const [entityType, setEntityType] = useState('');
+  const [entityId, setEntityId] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
@@ -24,6 +25,7 @@ export default function AdminAuditLogs() {
       });
 
       if (entityType) params.append('entityType', entityType);
+      if (entityId) params.append('entityId', entityId.trim());
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
       
@@ -54,6 +56,12 @@ export default function AdminAuditLogs() {
     fetchLogs(1);
   };
 
+  const copyToClipboard = (text) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    toast.success('ID copied to clipboard');
+  };
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
@@ -67,7 +75,7 @@ export default function AdminAuditLogs() {
             <select
               value={entityType}
               onChange={(e) => setEntityType(e.target.value)}
-              className="bg-luxury-dark border border-luxury-gray/20 text-luxury-white p-2 rounded w-48 outline-none focus:border-luxury-gold"
+              className="bg-luxury-dark border border-luxury-gray/20 text-luxury-white p-2 rounded w-44 outline-none focus:border-luxury-gold"
             >
               <option value="">All</option>
               <option value="Product">Product</option>
@@ -75,6 +83,16 @@ export default function AdminAuditLogs() {
               <option value="User">User</option>
               <option value="Review">Review</option>
             </select>
+          </div>
+          <div>
+            <label className="block text-sm text-luxury-gray mb-1">Entity / Order ID</label>
+            <input
+              type="text"
+              placeholder="Search by ID..."
+              value={entityId}
+              onChange={(e) => setEntityId(e.target.value)}
+              className="bg-luxury-dark border border-luxury-gray/20 text-luxury-white p-2 rounded outline-none focus:border-luxury-gold font-mono text-sm w-56"
+            />
           </div>
           <div>
             <label className="block text-sm text-luxury-gray mb-1">Start Date</label>
@@ -107,7 +125,7 @@ export default function AdminAuditLogs() {
               <tr>
                 <th className="p-4">Date</th>
                 <th className="p-4">Admin</th>
-                <th className="p-4">Entity Type</th>
+                <th className="p-4">Entity Type & ID</th>
                 <th className="p-4">Action</th>
                 <th className="p-4">Field</th>
                 <th className="p-4">Old Value</th>
@@ -129,8 +147,19 @@ export default function AdminAuditLogs() {
                         <td className="p-4 align-top">{dayjs(log.createdAt).format('DD MMM YYYY, HH:mm')}</td>
                         <td className="p-4 align-top">{log.performedBy?.username || log.performedBy?.email || log.performedBy}</td>
                         <td className="p-4 align-top">
-                          {log.entityType}
-                          <div className="text-xs text-luxury-gray/60 mt-1" title={log.entityId}>ID: {log.entityId?.substring(0, 8)}...</div>
+                          <div className="font-semibold">{log.entityType}</div>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className="text-xs font-mono text-luxury-gray/80 break-all select-all">{log.entityId}</span>
+                            {log.entityId && (
+                              <button
+                                onClick={() => copyToClipboard(log.entityId)}
+                                className="text-luxury-gray hover:text-luxury-gold transition-colors p-0.5"
+                                title="Copy ID"
+                              >
+                                <FiCopy className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
                         </td>
                         <td className="p-4 align-top">
                           <span className="bg-luxury-gray/20 text-luxury-white px-2 py-1 rounded text-sm">{log.action}</span>
@@ -153,8 +182,19 @@ export default function AdminAuditLogs() {
                             {log.performedBy?.username || log.performedBy?.email || 'Unknown'}
                           </td>
                           <td className="p-4 align-top border-r border-luxury-gray/10 bg-luxury-secondary/10" rowSpan={log.changes.length}>
-                            {log.entityType}
-                            <div className="text-xs text-luxury-gray/60 mt-1" title={log.entityId}>ID: {log.entityId?.substring(0, 8)}...</div>
+                            <div className="font-semibold">{log.entityType}</div>
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <span className="text-xs font-mono text-luxury-gray/80 break-all select-all">{log.entityId}</span>
+                              {log.entityId && (
+                                <button
+                                  onClick={() => copyToClipboard(log.entityId)}
+                                  className="text-luxury-gray hover:text-luxury-gold transition-colors p-0.5"
+                                  title="Copy ID"
+                                >
+                                  <FiCopy className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
                           </td>
                           <td className="p-4 align-top border-r border-luxury-gray/10 bg-luxury-secondary/10" rowSpan={log.changes.length}>
                             <span className="bg-luxury-gold/20 text-luxury-gold border border-luxury-gold/30 px-2 py-1 rounded text-sm font-medium">
