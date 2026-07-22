@@ -1,5 +1,6 @@
 const AuditLog = require('../models/AuditLog');
 const asyncHandler = require('../middleware/asyncHandler');
+const mongoose = require('mongoose');
 
 // @desc    Get all audit logs
 // @route   GET /api/audit-logs
@@ -17,8 +18,20 @@ exports.getAuditLogs = asyncHandler(async (req, res) => {
   const query = {};
 
   if (entityType) query.entityType = entityType;
-  if (entityId) query.entityId = entityId;
-  if (performedBy) query.performedBy = performedBy;
+  if (entityId) {
+    if (mongoose.Types.ObjectId.isValid(entityId)) {
+      query.entityId = entityId;
+    } else {
+      query.entityId = null;
+    }
+  }
+  if (performedBy) {
+    if (mongoose.Types.ObjectId.isValid(performedBy)) {
+      query.performedBy = performedBy;
+    } else {
+      query.performedBy = null;
+    }
+  }
 
   if (startDate || endDate) {
     query.createdAt = {};
