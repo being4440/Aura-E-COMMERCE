@@ -6,13 +6,13 @@ const authRoutes = require('./routes/authRoutes');
 // Load environment variables from .env file
 dotenv.config();
 
-const app = express(); 
+const app = express();
 // Configure trust proxy for Render (and other reverse proxies) so express-rate-limit uses the real client IP
 app.set('trust proxy', 1);
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'], // Allow frontend Vite dev server origins
+  origin: ['http://localhost:5173', 'http://localhost:5174', 'https://aura-e-commerce-vt3c.onrender.com'], // Allow frontend Vite dev server origins
   credentials: true
 }));
 // Webhook must be parsed as raw body before express.json() is applied
@@ -40,6 +40,7 @@ app.use('/api/admin/dashboard', require('./routes/adminDashboardRoutes'));
 app.use('/api/admin/analytics', require('./routes/adminAnalyticsRoutes'));
 app.use('/api/cart', require('./routes/cart.routes'));
 app.use('/api/payment', require('./routes/paymentRoutes'));
+app.use('/api/audit-logs', require('./routes/auditRoutes'));
 
 // Base route for API check
 app.get('/', (req, res) => {

@@ -1,5 +1,6 @@
 const Review = require('../models/Review');
 const { updateProductRating } = require('./reviewController');
+const auditService = require('../services/auditService');
 
 const asyncHandler = require("../middleware/asyncHandler");
 
@@ -54,10 +55,29 @@ exports.toggleHideReview = asyncHandler(async (req, res) => {
     throw error;
   }
 
+  const changes = [];
+  if (isHidden !== undefined && isHidden !== review.isHidden) {
+    changes.push({
+      field: 'isHidden',
+      oldValue: review.isHidden,
+      newValue: isHidden
+    });
+  }
+
   review.isHidden = isHidden;
   review.flaggedReason = isHidden ? (flaggedReason || 'Hidden by Admin') : null;
 
   await review.save();
+
+  if (changes.length > 0) {
+    await auditService.logChange({
+      entityType: 'Review',
+      entityId: review._id,
+      action: 'STATUS_CHANGE',
+      performedBy: req.user.id,
+      changes
+    });
+  }
 
   // Recalculate product rating to exclude/include this review
   await updateProductRating(review.product);

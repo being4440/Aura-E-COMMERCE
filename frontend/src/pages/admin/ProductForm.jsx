@@ -54,18 +54,19 @@ export default function ProductForm() {
         try {
           const res = await getProductByIdAPI(id);
           if (res.data.success) {
-            const p = res.data.data;
+            // getProductByIdAPI returns { success: true, data: { product, relatedProducts } }
+            const p = res.data.data.product || res.data.data;
             setFormData({
-              title: p.title,
-              brand: p.brand,
-              category: p.category,
-              price: p.price,
-              stock: p.stock,
-              description: p.description,
+              title: p.title || '',
+              brand: p.brand || '',
+              category: p.category?.name || p.category || '',
+              price: p.price || '',
+              stock: p.stock ?? '',
+              description: p.description || '',
               sizes: p.sizes?.join(', ') || '',
               colors: p.colors?.join(', ') || '',
-              isActive: p.isActive,
-              featured: p.featured
+              isActive: p.isActive ?? true,
+              featured: p.featured ?? false
             });
             setExistingImages(p.images || []);
           }

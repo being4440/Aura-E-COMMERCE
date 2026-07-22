@@ -3,6 +3,7 @@ const Category = require('../models/Category');
 const Order = require('../models/Order');
 const { uploadImage, deleteImage } = require('../utils/cloudinary');
 const mongoose = require('mongoose');
+const auditService = require('../services/auditService');
 
 const asyncHandler = require("../middleware/asyncHandler");
 
@@ -160,6 +161,19 @@ exports.updateProduct = asyncHandler(async (req, res) => {
     throw error;
   }
 
+  const trackedFields = ['price', 'stock', 'title'];
+  const changes = [];
+
+  for (const field of trackedFields) {
+    if (req.body[field] !== undefined && req.body[field] != product[field]) {
+      changes.push({
+        field,
+        oldValue: product[field],
+        newValue: req.body[field],
+      });
+    }
+  }
+
   // Process new images if uploaded
   let imageUrls = product.images;
   if (req.files && req.files.length > 0) {
@@ -194,6 +208,16 @@ exports.updateProduct = asyncHandler(async (req, res) => {
   product.lastUpdated = Date.now();
 
   await product.save();
+
+  if (changes.length > 0) {
+    await auditService.logChange({
+      entityType: 'Product',
+      entityId: product._id,
+      action: 'UPDATE',
+      performedBy: req.user.id,
+      changes
+    });
+  }
 
   res.status(200).json({ success: true, data: product, message: 'Product updated successfully' });
 });

@@ -12,7 +12,8 @@ export default function AdminLayout({ handleLogout }) {
     { path: '/admin/users', label: 'Customers', icon: FiBox },
     { path: '/admin/products', label: 'Products', icon: FiBox },
     { path: '/admin/products/new', label: 'Add Product', icon: FiBox },
-    { path: '/admin/categories', label: 'Categories', icon: FiList }
+    { path: '/admin/categories', label: 'Categories', icon: FiList },
+    { path: '/admin/audit-logs', label: 'Audit Logs', icon: FiList }
   ];
 
   return (

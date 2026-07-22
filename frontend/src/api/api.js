@@ -75,6 +75,7 @@ export const adminGetTopProductsAPI = () => api.get('/admin/dashboard/top-produc
 
 // Admin - Users
 export const adminGetUsersAPI = (params) => api.get('/admin/users', { params });
+export const adminGetAuditLogsAPI = (params) => api.get('/audit-logs', { params });
 export const adminGetUserByIdAPI = (id) => api.get(`/admin/users/${id}`);
 export const adminUpdateUserRoleAPI = (id, role) => api.patch(`/admin/users/${id}/role`, { role });
 export const adminUpdateUserBlockAPI = (id, data) => api.patch(`/admin/users/${id}/block`, data);

@@ -33,6 +33,7 @@ import AdminUsersList from './pages/admin/AdminUsersList.jsx';
 import AdminUserDetail from './pages/admin/AdminUserDetail.jsx';
 import AdminReviewsList from './pages/admin/AdminReviewsList.jsx';
 import AdminAnalytics from './pages/admin/AdminAnalytics.jsx';
+import AdminAuditLogs from './pages/admin/AdminAuditLogs.jsx';
 
 const AppInit = () => {
   const dispatch = useDispatch();
@@ -88,6 +89,7 @@ function App() {
               <Route path="products" element={<ProductsManagement />} />
               <Route path="products/new" element={<ProductForm />} />
               <Route path="products/edit/:id" element={<ProductForm />} />
+              <Route path="audit-logs" element={<AdminAuditLogs />} />
             </Route>
             <Route path="/collections" element={<Collections />} />
             <Route path="/about" element={<About />} />

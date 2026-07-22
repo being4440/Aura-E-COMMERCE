@@ -6,6 +6,7 @@ const mongoose = require('mongoose');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const PDFDocument = require('pdfkit');
 const asyncHandler = require('../middleware/asyncHandler');
+const auditService = require('../services/auditService');
 
 const STATUS_FLOW = {
   pending: ['confirmed', 'cancelled'],
@@ -151,6 +152,15 @@ exports.updateOrderStatus = asyncHandler(async (req, res) => {
     throw error;
   }
 
+  const changes = [];
+  if (req.body.status !== undefined && req.body.status !== order.status) {
+    changes.push({
+      field: 'status',
+      oldValue: order.status,
+      newValue: req.body.status
+    });
+  }
+
   // Update status and history
   order.status = status;
   order.statusTimeline.push({
@@ -168,6 +178,16 @@ exports.updateOrderStatus = asyncHandler(async (req, res) => {
   });
 
   await order.save();
+
+  if (changes.length > 0) {
+    await auditService.logChange({
+      entityType: 'Order',
+      entityId: order._id,
+      action: 'STATUS_CHANGE',
+      performedBy: req.user.id,
+      changes
+    });
+  }
 
   res.status(200).json({ success: true, message: `Order status updated to ${status}`, data: order });
 });
@@ -223,6 +243,15 @@ exports.cancelOrder = asyncHandler(async (req, res) => {
       // We don't fail if product doesn't exist, to avoid breaking cancellation of legacy orders
     }
 
+    const changes = [];
+    if (order.status !== 'cancelled') {
+      changes.push({
+        field: 'status',
+        oldValue: order.status,
+        newValue: 'cancelled'
+      });
+    }
+
     // Update Order
     order.status = 'cancelled';
     order.cancelReason = cancelReason || 'Cancelled by Admin';
@@ -243,6 +272,16 @@ exports.cancelOrder = asyncHandler(async (req, res) => {
 
     await order.save({ session });
     await session.commitTransaction();
+
+    if (changes.length > 0) {
+      await auditService.logChange({
+        entityType: 'Order',
+        entityId: order._id,
+        action: 'STATUS_CHANGE',
+        performedBy: req.user.id,
+        changes
+      });
+    }
 
     res.status(200).json({ success: true, message: 'Order cancelled successfully', data: order });
   } catch (error) {

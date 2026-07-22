@@ -3,6 +3,7 @@ const Order = require('../models/Order');
 const Wishlist = require('../models/Wishlist');
 const mongoose = require('mongoose');
 const asyncHandler = require('../middleware/asyncHandler');
+const auditService = require('../services/auditService');
 
 // @desc    Get all users (paginated, searchable, filterable)
 exports.getUsers = asyncHandler(async (req, res) => {
@@ -137,11 +138,31 @@ exports.toggleBlockUser = asyncHandler(async (req, res) => {
     throw error;
   }
 
+  const changes = [];
+  if (isBlocked !== undefined && isBlocked !== user.isBlocked) {
+    changes.push({
+      field: 'isBlocked',
+      oldValue: user.isBlocked,
+      newValue: isBlocked
+    });
+  }
+
   user.isBlocked = isBlocked;
   user.blockedAt = isBlocked ? new Date() : null;
   user.blockedReason = isBlocked ? (blockedReason || 'Blocked by Admin') : null;
 
   await user.save();
+
+  if (changes.length > 0) {
+    const action = isBlocked ? 'BLOCK' : 'UNBLOCK';
+    await auditService.logChange({
+      entityType: 'User',
+      entityId: user._id,
+      action,
+      performedBy: req.user.id,
+      changes
+    });
+  }
 
   res.status(200).json({
     success: true,
@@ -176,11 +197,22 @@ exports.deleteUser = asyncHandler(async (req, res) => {
   const orderCount = await Order.countDocuments({ user: id });
 
   if (orderCount > 0) {
+    const wasBlocked = user.isBlocked;
     // Force a block instead of soft delete if they have orders
     user.isBlocked = true;
     user.blockedAt = new Date();
     user.blockedReason = 'System Action: Blocked instead of deleted due to existing orders.';
     await user.save();
+
+    if (wasBlocked === false) {
+      await auditService.logChange({
+        entityType: 'User',
+        entityId: user._id,
+        action: 'BLOCK',
+        performedBy: req.user.id,
+        changes: [{ field: 'isBlocked', oldValue: false, newValue: true }]
+      });
+    }
 
     return res.status(409).json({
       success: false,
@@ -193,6 +225,14 @@ exports.deleteUser = asyncHandler(async (req, res) => {
   user.isDeleted = true;
   user.isBlocked = true;
   await user.save();
+
+  await auditService.logChange({
+    entityType: 'User',
+    entityId: user._id,
+    action: 'DELETE',
+    performedBy: req.user.id,
+    changes: [{ field: 'isDeleted', oldValue: false, newValue: true }]
+  });
 
   res.status(200).json({
     success: true,
