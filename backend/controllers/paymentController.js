@@ -189,17 +189,18 @@ exports.webhook = async (req, res) => {
       }
 
       // Update Order Status
+      const prevStatus = order.status || 'pending';
       order.paymentStatus = 'paid';
-      order.status = 'processing';
+      order.status = 'confirmed';
       order.stripePaymentIntentId = session.payment_intent;
       order.statusTimeline.push({
-        status: 'processing',
+        status: 'confirmed',
         timestamp: new Date(),
         message: 'Payment confirmed via Stripe Webhook'
       });
       order.statusHistory.push({
-        fromStatus: 'pending',
-        toStatus: 'processing',
+        fromStatus: prevStatus,
+        toStatus: 'confirmed',
         changedBy: null,
         changedAt: new Date(),
         note: 'Payment Confirmed via Stripe Webhook'

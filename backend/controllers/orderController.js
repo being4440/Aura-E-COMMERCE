@@ -16,7 +16,7 @@ exports.placeOrder = asyncHandler(async (req, res) => {
     error.status = 400;
     throw error;
   }
-  
+
   if (!shippingAddress || Object.keys(shippingAddress).length === 0) {
     const error = new Error('shippingAddress is empty or missing. req.body was: ' + JSON.stringify(req.body));
     error.status = 400;
@@ -64,11 +64,11 @@ exports.placeOrder = asyncHandler(async (req, res) => {
     for (const item of items) {
       const updatedProduct = await Product.findOneAndUpdate(
         { _id: item.productId, stock: { $gte: item.quantity } },
-        { 
-          $inc: { 
+        {
+          $inc: {
             stock: -item.quantity,
             sold: +item.quantity
-          } 
+          }
         },
         { new: true, session }
       );
@@ -85,27 +85,30 @@ exports.placeOrder = asyncHandler(async (req, res) => {
       { session }
     );
 
+    const isPaid = paymentInfo;
+    const initialStatus = 'confirmed';
+
     // Step 4 - Create Order Object
     const newOrder = new Order({
       user: req.user.id,
       items,
       shippingAddress,
       paymentInfo,
-      paymentMethod: paymentInfo?.method || 'cod', 
-      paymentStatus: paymentInfo?.method === 'cod' ? 'pending' : 'paid',
+      paymentMethod: paymentInfo?.method || 'cod',
+      paymentStatus: isPaid ? 'paid' : 'pending',
       totalAmount: calculatedTotalAmount,
-      status: 'pending',
+      status: initialStatus,
       statusTimeline: [{
-        status: 'pending',
+        status: initialStatus,
         timestamp: new Date(),
-        message: 'Order placed successfully'
+        message: isPaid ? 'Order placed and payment confirmed' : 'Order placed successfully'
       }],
       statusHistory: [{
         fromStatus: null,
-        toStatus: 'pending',
+        toStatus: initialStatus,
         changedBy: null,
         changedAt: new Date(),
-        note: 'Order Created'
+        note: isPaid ? 'Order Created & Payment Confirmed' : 'Order Created'
       }]
     });
 
@@ -136,7 +139,7 @@ exports.cancelOrder = asyncHandler(async (req, res) => {
   }
   // Initial read for specific error messaging
   const initialOrder = await Order.findById(req.params.id);
-  
+
   if (!initialOrder) {
     const error = new Error('Order not found');
     error.status = 404;
@@ -168,9 +171,9 @@ exports.cancelOrder = asyncHandler(async (req, res) => {
     await session.withTransaction(async () => {
       // Atomic transition to prevent race conditions during cancellation
       updatedOrder = await Order.findOneAndUpdate(
-        { 
-          _id: req.params.id, 
-          status: { $nin: ['cancelled', 'delivered'] } 
+        {
+          _id: req.params.id,
+          status: { $nin: ['cancelled', 'delivered'] }
         },
         {
           $set: { status: 'cancelled' },
@@ -184,7 +187,7 @@ exports.cancelOrder = asyncHandler(async (req, res) => {
         },
         { new: true, session }
       );
-      
+
       if (!updatedOrder) {
         const error = new Error('Failed to cancel order (it may have been modified concurrently)');
         error.status = 409;
@@ -221,20 +224,20 @@ exports.getOrders = asyncHandler(async (req, res) => {
 exports.getOrderById = asyncHandler(async (req, res) => {
   const isValidObjectId = mongoose.Types.ObjectId.isValid(req.params.id);
   let order;
-  
+
   if (isValidObjectId) {
     order = await Order.findById(req.params.id).populate('items.productId', 'title images');
   } else {
     // If not a valid ObjectId, assume it might be a Stripe session ID
     order = await Order.findOne({ stripeSessionId: req.params.id }).populate('items.productId', 'title images');
   }
-  
+
   if (!order) {
     const error = new Error('Order not found');
     error.status = 404;
     throw error;
   }
-  
+
   if (order.user.toString() !== req.user.id) {
     const error = new Error('Not authorized to view this order');
     error.status = 401;
@@ -249,13 +252,13 @@ exports.downloadInvoice = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id)
     .populate('user', 'username email mobile')
     .populate('items.productId', 'title');
-  
+
   if (!order) {
     const error = new Error('Order not found');
     error.status = 404;
     throw error;
   }
-  
+
   // Authorization check: User can only download their own invoice
   if (order.user._id.toString() !== req.user.id) {
     const error = new Error('Access denied. You do not own this order.');
@@ -278,17 +281,17 @@ exports.downloadInvoice = asyncHandler(async (req, res) => {
   }
 
   const doc = new PDFDocument({ margin: 50 });
-  
+
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename=Invoice-${order.invoiceNumber}.pdf`);
-  
+
   doc.pipe(res);
 
   // Header
   doc.fontSize(20).text('AURA', { align: 'right' });
   doc.fontSize(10).text('CRAFTED FOR TIMELESS ELEGANCE', { align: 'right' });
   doc.moveDown();
-  
+
   doc.fontSize(20).text('TAX INVOICE', { align: 'left' });
   doc.moveDown();
 
@@ -306,14 +309,14 @@ exports.downloadInvoice = asyncHandler(async (req, res) => {
   doc.text('Billed To:', 50, yPos);
   doc.text(order.user ? order.user.username : 'Guest', 50, yPos + 15);
   if (order.user) doc.text(order.user.email, 50, yPos + 30);
-  
+
   doc.text('Shipped To:', 300, yPos);
   const addr = order.shippingAddress;
   doc.text(addr.fullName, 300, yPos + 15);
   doc.text(`${addr.street}`, 300, yPos + 30);
   doc.text(`${addr.city}, ${addr.state} - ${addr.pincode}`, 300, yPos + 45);
   doc.text(`Phone: ${addr.mobile}`, 300, yPos + 60);
-  
+
   doc.moveDown(5);
 
   // Table Header
@@ -324,12 +327,12 @@ exports.downloadInvoice = asyncHandler(async (req, res) => {
   doc.text('Unit Price', 380, tableTop);
   doc.text('Total', 480, tableTop);
   doc.moveTo(50, tableTop + 15).lineTo(550, tableTop + 15).stroke();
-  
+
   doc.font('Helvetica');
   let itemY = tableTop + 25;
 
   let subtotal = 0;
-  
+
   for (const item of order.items) {
     const title = item.productId ? item.productId.title : 'Deleted Product';
     const itemTotal = item.quantity * item.price;
@@ -339,7 +342,7 @@ exports.downloadInvoice = asyncHandler(async (req, res) => {
     doc.text(item.quantity.toString(), 300, itemY);
     doc.text(`Rs. ${item.price.toLocaleString()}`, 380, itemY);
     doc.text(`Rs. ${itemTotal.toLocaleString()}`, 480, itemY);
-    
+
     itemY += 20;
   }
 
@@ -347,17 +350,17 @@ exports.downloadInvoice = asyncHandler(async (req, res) => {
   itemY += 15;
 
   // Totals
-  const shippingCharge = subtotal > 499 ? 0 : 49; 
+  const shippingCharge = subtotal > 499 ? 0 : 49;
   const grandTotal = order.totalAmount;
-  
+
   doc.text('Subtotal:', 380, itemY);
   doc.text(`Rs. ${subtotal.toLocaleString()}`, 480, itemY);
   itemY += 20;
-  
+
   doc.text('Shipping:', 380, itemY);
   doc.text(`Rs. ${shippingCharge.toLocaleString()}`, 480, itemY);
   itemY += 20;
-  
+
   doc.font('Helvetica-Bold');
   doc.text('Grand Total:', 380, itemY);
   doc.text(`Rs. ${grandTotal.toLocaleString()}`, 480, itemY);

@@ -140,6 +140,18 @@ exports.createProduct = asyncHandler(async (req, res) => {
 
   await product.save();
 
+  await auditService.logChange({
+    entityType: 'Product',
+    entityId: product._id,
+    action: 'CREATE',
+    performedBy: req.user.id,
+    changes: [
+      { field: 'title', oldValue: null, newValue: product.title },
+      { field: 'price', oldValue: null, newValue: product.price },
+      { field: 'stock', oldValue: null, newValue: product.stock }
+    ]
+  });
+
   res.status(201).json({ success: true, data: product, message: 'Product created successfully' });
 });
 
@@ -233,22 +245,34 @@ exports.quickUpdateStock = asyncHandler(async (req, res) => {
     throw error;
   }
 
-  const product = await Product.findByIdAndUpdate(
-    id,
-    { $set: { stock: Number(stock), lastUpdated: Date.now() } },
-    { new: true, runValidators: true }
-  );
-
-  if (!product) {
+  const existingProduct = await Product.findById(id);
+  if (!existingProduct) {
     const error = new Error('Product not found');
     error.status = 404;
     throw error;
   }
 
-  res.status(200).json({ success: true, data: product, message: 'Stock updated successfully' });
+  const oldStock = existingProduct.stock;
+  const newStock = Number(stock);
+
+  existingProduct.stock = newStock;
+  existingProduct.lastUpdated = Date.now();
+  await existingProduct.save();
+
+  if (oldStock !== newStock) {
+    await auditService.logChange({
+      entityType: 'Product',
+      entityId: existingProduct._id,
+      action: 'UPDATE',
+      performedBy: req.user.id,
+      changes: [{ field: 'stock', oldValue: oldStock, newValue: newStock }]
+    });
+  }
+
+  res.status(200).json({ success: true, data: existingProduct, message: 'Stock updated successfully' });
 });
 
-// DELETE Soft Delete Product
+// DELETE Soft Delete / Hard Delete Product
 exports.deleteProduct = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -259,27 +283,32 @@ exports.deleteProduct = asyncHandler(async (req, res) => {
     throw error;
   }
 
-  // Check if product is referenced in any active orders
-  const orderCount = await Order.countDocuments({
-    'items.productId': id,
-    status: { $nin: ['delivered', 'cancelled'] } // Only worry about active/pending orders
-  });
-
   const totalOrders = await Order.countDocuments({ 'items.productId': id });
 
   if (totalOrders > 0) {
-    // It has orders (past or present), soft delete it
+    // Soft delete (deactivate) because it has existing orders
+    const wasActive = product.isActive;
     product.isActive = false;
     product.lastUpdated = Date.now();
     await product.save();
+
+    await auditService.logChange({
+      entityType: 'Product',
+      entityId: product._id,
+      action: 'DELETE',
+      performedBy: req.user.id,
+      changes: [
+        { field: 'isActive', oldValue: wasActive, newValue: false }
+      ],
+      metadata: { type: 'soft_delete', reason: 'Deactivated due to existing orders' }
+    });
+
     return res.status(200).json({ 
       success: true, 
       message: 'Product deactivated (soft-deleted) because it has existing orders.' 
     });
   } else {
-    // No orders ever placed for this product, safe to hard delete
-    
-    // First, delete all associated images from Cloudinary
+    // Hard delete
     if (product.images && product.images.length > 0) {
       await Promise.all(
         product.images.map(imgUrl => deleteImage(imgUrl))
@@ -287,6 +316,18 @@ exports.deleteProduct = asyncHandler(async (req, res) => {
     }
 
     await Product.findByIdAndDelete(id);
+
+    await auditService.logChange({
+      entityType: 'Product',
+      entityId: product._id,
+      action: 'DELETE',
+      performedBy: req.user.id,
+      changes: [
+        { field: 'title', oldValue: product.title, newValue: null }
+      ],
+      metadata: { type: 'hard_delete' }
+    });
+
     return res.status(200).json({ 
       success: true, 
       message: 'Product permanently deleted.' 
