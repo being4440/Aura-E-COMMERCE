@@ -2,7 +2,9 @@
 
 A full-stack MERN e-commerce platform named "Aura," designed for a luxury market. It features a complete customer-facing storefront and a comprehensive administrative dashboard for managing the application. The project is built with a modern technology stack, including React with Redux for the frontend and a Node.js/Express backend with MongoDB.
 
-## ✨ Key Features
+deployed link <https://aura-e-commerce-vt3c.onrender.com>
+
+##  Key Features
 
 ### Customer Experience
 - **Elegant UI**: A sophisticated and responsive design built with Tailwind CSS and Framer Motion.
@@ -20,12 +22,10 @@ A full-stack MERN e-commerce platform named "Aura," designed for a luxury market
 - **Order Management**: View, search, filter, and update order statuses (e.g., packed, shipped, delivered).
 - **User Management**: View and manage all users, with the ability to block or unblock accounts.
 - **Category Management**: Create, edit, and manage product categories.
-- **Review Moderation**: Hide or permanently delete spam/inappropriate reviews.
-- **Advanced Analytics**: Visual charts for sales trends, product performance, user registrations, and payment methods.
 - **Audit Logging**: Tracks critical changes made by admins to products, orders, and users for accountability.
 - **Invoice Generation**: Manually generate and download PDF invoices for any order.
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 **Backend:**
 - **Framework**: Node.js, Express.js
@@ -44,7 +44,7 @@ A full-stack MERN e-commerce platform named "Aura," designed for a luxury market
 - **API Communication**: Axios
 - **UI Feedback**: React Hot Toast
 
-## 🚀 Getting Started
+## Getting Started
 
 To get a local copy up and running, follow these simple steps.
 
@@ -118,7 +118,7 @@ To get a local copy up and running, follow these simple steps.
     ```
     The application will be available at `http://localhost:5173`.
 
-## 📂 Project Structure
+##  Project Structure
 
 The repository is organized into two main folders: `backend` and `frontend`.
 
