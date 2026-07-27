@@ -43,10 +43,7 @@ const OrderSchema = new mongoose.Schema({
     city: { type: String, required: true, match: /^[a-zA-Z\s]+$/ },
     state: { type: String, required: true }
   },
-  paymentInfo: {
-    type: String,
-    required: true
-  },
+ 
   paymentMethod: {
     type: String,
     enum: ['stripe', 'cod'],
@@ -58,7 +55,7 @@ const OrderSchema = new mongoose.Schema({
   },
   paymentStatus: {
     type: String,
-    enum: ['pending', 'completed', 'paid', 'failed'],
+    enum: ['pending','paid', 'failed'],
     default: 'pending'
   },
   createdAt: {
@@ -80,7 +77,7 @@ const OrderSchema = new mongoose.Schema({
   }],
   returnStatus: {
     type: String,
-    enum: ['None', 'Return Requested', 'Approved', 'Rejected', 'Refund Processing', 'Refund Processed', 'Refund Failed'],
+    enum: ['None', 'Return Requested', 'Approved', 'Rejected'],
     default: 'None'
   },
   statusHistory: [{

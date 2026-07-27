@@ -95,7 +95,7 @@ exports.placeOrder = asyncHandler(async (req, res) => {
       shippingAddress,
       paymentInfo,
       paymentMethod: paymentInfo?.method || 'cod',
-      paymentStatus: isPaid ? 'paid' : 'pending',
+      paymentStatus: 'pending',
       totalAmount: calculatedTotalAmount,
       status: initialStatus,
       statusTimeline: [{

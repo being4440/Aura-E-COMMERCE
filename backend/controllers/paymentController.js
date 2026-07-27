@@ -88,11 +88,10 @@ exports.createCheckoutSession = asyncHandler(async (req, res) => {
     user: req.user.id,
     items: validatedItems,
     shippingAddress,
-    paymentInfo: 'Stripe',
     paymentMethod: 'stripe',
     paymentStatus: 'pending',
     totalAmount: calculatedTotalAmount,
-    status: 'pending',
+    status: 'confirmed',
     statusTimeline: [{
       status: 'pending',
       timestamp: new Date(),
