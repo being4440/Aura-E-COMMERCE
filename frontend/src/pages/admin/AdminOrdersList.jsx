@@ -109,8 +109,6 @@ export default function AdminOrdersList() {
             <option value="">All Returns</option>
             <option value="Return Requested">Return Requested</option>
             <option value="Approved">Return Approved</option>
-            <option value="Refund Processing">Refund Processing</option>
-            <option value="Refund Processed">Refund Processed</option>
           </select>
 
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="bg-luxury-dark border border-luxury-gray/20 text-luxury-white px-3 py-2 focus:outline-none focus:border-luxury-gold font-inter text-sm">

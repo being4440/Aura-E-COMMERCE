@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiShoppingBag, FiHeart, FiStar, FiArrowLeft, FiMinus, FiPlus, FiTrash2 } from 'react-icons/fi';
-import { 
-  getProductByIdAPI, checkProductStockAPI, 
+import {
+  getProductByIdAPI, checkProductStockAPI,
   getWishlistAPI, addToWishlistAPI, removeFromWishlistAPI,
   getProductReviewsAPI, addReviewAPI, updateReviewAPI, deleteReviewAPI
 } from '../api/api';
@@ -23,6 +23,7 @@ export default function ProductDetails() {
   const location = useLocation();
   const user = useSelector(state => state.auth?.user) || JSON.parse(localStorage.getItem('user'));
   const cartItems = useSelector(state => state.cart.items);
+  const [selectedImage, setSelectedImage] = useState('');
 
   const [inWishlist, setInWishlist] = useState(false);
   const [reviews, setReviews] = useState([]);
@@ -36,11 +37,15 @@ export default function ProductDetails() {
       try {
         const res = await getProductByIdAPI(id);
         setProduct(res.data.data.product);
+        const productData = res.data.data.product;
+
+        setProduct(productData);
+        setSelectedImage(productData.images?.[0] || '');
         setRelated(res.data.data.relatedProducts);
 
         const reviewsRes = await getProductReviewsAPI(id);
         setReviews(reviewsRes.data.reviews || []);
-        
+
         if (user) {
           const uReview = reviewsRes.data.reviews?.find(r => (r.user?._id || r.user) === (user._id || user.id));
           if (uReview) {
@@ -133,12 +138,12 @@ export default function ProductDetails() {
         await addReviewAPI(id, { rating, comment });
         toast.success('Review added');
       }
-      
+
       const reviewsRes = await getProductReviewsAPI(id);
       setReviews(reviewsRes.data.reviews || []);
       const uReview = reviewsRes.data.reviews?.find(r => (r.user?._id || r.user) === (user._id || user.id));
       if (uReview) setUserReview(uReview);
-      
+
       const prodRes = await getProductByIdAPI(id);
       setProduct(prodRes.data.data.product);
 
@@ -154,13 +159,13 @@ export default function ProductDetails() {
     try {
       await deleteReviewAPI(id, reviewId);
       toast.success('Review deleted');
-      
+
       if (userReview && userReview._id === reviewId) {
         setRating(0);
         setComment('');
         setUserReview(null);
       }
-      
+
       const reviewsRes = await getProductReviewsAPI(id);
       setReviews(reviewsRes.data.reviews || []);
       const prodRes = await getProductByIdAPI(id);
@@ -189,16 +194,15 @@ export default function ProductDetails() {
     );
   }
 
-  const image = product.images?.[0] || 'https://images.unsplash.com/photo-1523170335258-f5ed11844a49?q=80&w=800&auto=format&fit=crop';
-
+  const image = selectedImage || 'https://images.unsplash.com/photo-1523170335258-f5ed11844a49?q=80&w=800&auto=format&fit=crop';
   const renderStars = (rating) => {
     const stars = [];
-    for(let i=1; i<=5; i++) {
+    for (let i = 1; i <= 5; i++) {
       stars.push(
-        <FiStar 
-          key={i} 
-          className={i <= Math.round(rating) ? "text-luxury-gold fill-current" : "text-luxury-gray"} 
-          size={16} 
+        <FiStar
+          key={i}
+          className={i <= Math.round(rating) ? "text-luxury-gold fill-current" : "text-luxury-gray"}
+          size={16}
         />
       );
     }
@@ -214,20 +218,20 @@ export default function ProductDetails() {
 
         <div className="flex flex-col lg:flex-row gap-16">
           {/* Left Side - Image Gallery */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
             className="w-full lg:w-1/2"
           >
             <div className="aspect-square bg-[#111] overflow-hidden border border-luxury-gray/10 relative">
-              <img 
-                src={image} 
-                alt={product.title} 
+              <img
+                src={image}
+                alt={product.title}
                 className="w-full h-full object-cover"
               />
               {user?.role !== 'admin' && (
-                <button 
+                <button
                   onClick={handleWishlistToggle}
                   className="absolute top-6 right-6 p-3 bg-luxury-dark/50 backdrop-blur-md rounded-full text-luxury-white hover:text-luxury-gold transition-colors border border-luxury-gray/20"
                 >
@@ -238,8 +242,20 @@ export default function ProductDetails() {
             {product.images?.length > 1 && (
               <div className="flex gap-4 mt-4">
                 {product.images.map((img, idx) => (
-                  <div key={idx} className="w-24 h-24 bg-[#111] border border-luxury-gray/10 cursor-pointer hover:border-luxury-gold transition-colors">
-                    <img src={img} alt={`${product.title} view ${idx+1}`} className="w-full h-full object-cover" />
+                  <div
+                    key={idx}
+                    onClick={() => setSelectedImage(img)}
+                    className={`w-24 h-24 cursor-pointer overflow-hidden border transition-all
+      ${selectedImage === img
+                        ? "border-luxury-gold"
+                        : "border-luxury-gray/10 hover:border-luxury-gold"
+                      }`}
+                  >
+                    <img
+                      src={img}
+                      alt={`${product.title} view ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 ))}
               </div>
@@ -247,7 +263,7 @@ export default function ProductDetails() {
           </motion.div>
 
           {/* Right Side - Product Details */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: 30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
@@ -256,11 +272,11 @@ export default function ProductDetails() {
             <div className="text-luxury-gold font-poppins uppercase tracking-widest text-xs mb-4">
               {product.category}
             </div>
-            
+
             <h1 className="text-4xl md:text-5xl font-playfair text-luxury-white leading-tight mb-6">
               {product.title}
             </h1>
-            
+
             <div className="flex items-center gap-4 mb-8">
               <div className="flex items-center gap-4">
                 <span className="text-3xl font-inter text-luxury-white tracking-wide">
@@ -318,11 +334,11 @@ export default function ProductDetails() {
                     )}
                   </span>
                 </div>
-                
+
                 <div className="flex items-center gap-6">
                   {/* Quantity Selector */}
                   <div className="flex items-center border border-luxury-gray/30 w-fit">
-                    <button 
+                    <button
                       onClick={() => setQuantity(Math.max(1, quantity - 1))}
                       className="p-4 text-luxury-gray hover:text-luxury-white transition-colors"
                       disabled={product.stock === 0}
@@ -330,7 +346,7 @@ export default function ProductDetails() {
                       <FiMinus />
                     </button>
                     <span className="w-12 text-center font-inter text-luxury-white">{quantity}</span>
-                    <button 
+                    <button
                       onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
                       className="p-4 text-luxury-gray hover:text-luxury-white transition-colors"
                       disabled={product.stock === 0}
@@ -344,11 +360,10 @@ export default function ProductDetails() {
                     <button
                       onClick={handleAddToCart}
                       disabled={product.stock === 0}
-                      className={`w-full py-4 px-6 font-poppins uppercase tracking-widest text-sm transition-all duration-300 ${
-                        product.stock === 0 
-                          ? 'bg-luxury-gray/20 text-luxury-gray cursor-not-allowed' 
+                      className={`w-full py-4 px-6 font-poppins uppercase tracking-widest text-sm transition-all duration-300 ${product.stock === 0
+                          ? 'bg-luxury-gray/20 text-luxury-gray cursor-not-allowed'
                           : 'bg-luxury-gold hover:opacity-90 text-luxury-dark'
-                      }`}
+                        }`}
                     >
                       {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
                     </button>
@@ -365,7 +380,7 @@ export default function ProductDetails() {
               </div>
               <div>
                 <h4 className="font-playfair text-xl text-luxury-white mb-2">Authenticity Guaranteed</h4>
-                <p className="text-luxury-gray font-inter text-sm">Every piece comes with a certificate of authenticity and is rigorously verified by our master horologists.</p>
+                <p className="text-luxury-gray font-inter text-sm">Every piece comes with a certificate of authenticity.</p>
               </div>
             </div>
 
@@ -374,18 +389,17 @@ export default function ProductDetails() {
               <h3 className="text-2xl font-playfair text-luxury-white mb-6">
                 Customer Reviews <span className="text-luxury-gray text-lg ml-2">({reviews.length})</span>
               </h3>
-              
+
               {user ? (
                 <form id="review-form" onSubmit={handleReviewSubmit} className="mb-10 bg-[#111] p-6 border border-luxury-gray/20">
                   <h4 className="text-luxury-white font-playfair mb-4">{userReview ? 'Update Your Review' : 'Write a Review'}</h4>
                   <div className="flex gap-2 mb-4">
                     {[1, 2, 3, 4, 5].map((star) => (
-                      <FiStar 
-                        key={star} 
+                      <FiStar
+                        key={star}
                         size={24}
-                        className={`cursor-pointer transition-colors ${
-                          star <= (hoverRating || rating) ? 'text-luxury-gold fill-luxury-gold' : 'text-luxury-gray'
-                        }`}
+                        className={`cursor-pointer transition-colors ${star <= (hoverRating || rating) ? 'text-luxury-gold fill-luxury-gold' : 'text-luxury-gray'
+                          }`}
                         onMouseEnter={() => setHoverRating(star)}
                         onMouseLeave={() => setHoverRating(0)}
                         onClick={() => setRating(star)}
@@ -424,36 +438,37 @@ export default function ProductDetails() {
                   const isAdmin = user && user.role === 'admin';
                   const canDelete = isOwner || isAdmin;
                   return (
-                  <div key={rev._id} className="border-b border-luxury-gray/10 pb-6">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="flex text-luxury-gold">{renderStars(rev.rating)}</div>
-                      <span className="text-luxury-white font-inter text-sm ml-2">{rev.user?.name || rev.user?.username || 'User'}</span>
-                      <span className="text-luxury-gray font-inter text-xs ml-auto">{new Date(rev.createdAt).toLocaleDateString()}</span>
-                    </div>
-                    <p className="text-luxury-gray font-inter text-sm mb-3">{rev.comment}</p>
-                    {canDelete && (
-                      <div className="flex gap-4">
-                        {isOwner && (
-                          <button 
-                            onClick={() => {
-                              const form = document.getElementById('review-form');
-                              if (form) window.scrollTo({ top: form.offsetTop - 100, behavior: 'smooth' });
-                            }}
-                            className="text-luxury-gold font-inter text-xs uppercase tracking-widest hover:text-white transition-colors"
-                          >
-                            Edit
-                          </button>
-                        )}
-                        <button 
-                          onClick={() => handleReviewDelete(rev._id)}
-                          className="text-red-500 font-inter text-xs uppercase tracking-widest hover:text-red-400 transition-colors"
-                        >
-                          Delete
-                        </button>
+                    <div key={rev._id} className="border-b border-luxury-gray/10 pb-6">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="flex text-luxury-gold">{renderStars(rev.rating)}</div>
+                        <span className="text-luxury-white font-inter text-sm ml-2">{rev.user?.name || rev.user?.username || 'User'}</span>
+                        <span className="text-luxury-gray font-inter text-xs ml-auto">{new Date(rev.createdAt).toLocaleDateString()}</span>
                       </div>
-                    )}
-                  </div>
-                )}) : (
+                      <p className="text-luxury-gray font-inter text-sm mb-3">{rev.comment}</p>
+                      {canDelete && (
+                        <div className="flex gap-4">
+                          {isOwner && (
+                            <button
+                              onClick={() => {
+                                const form = document.getElementById('review-form');
+                                if (form) window.scrollTo({ top: form.offsetTop - 100, behavior: 'smooth' });
+                              }}
+                              className="text-luxury-gold font-inter text-xs uppercase tracking-widest hover:text-white transition-colors"
+                            >
+                              Edit
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleReviewDelete(rev._id)}
+                            className="text-red-500 font-inter text-xs uppercase tracking-widest hover:text-red-400 transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                }) : (
                   <p className="text-luxury-gray font-inter text-sm mb-6">No reviews yet. Be the first to review this product!</p>
                 )}
               </div>

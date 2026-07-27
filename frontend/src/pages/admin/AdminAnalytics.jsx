@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { adminGetSalesAnalyticsAPI, adminGetProductsAnalyticsAPI, adminGetUsersAnalyticsAPI, adminGetPaymentsAnalyticsAPI } from '../../api/api';
 import { toast } from 'react-hot-toast';
-import { 
+import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
   BarChart, Bar, PieChart, Pie, Cell, Legend
 } from 'recharts';
