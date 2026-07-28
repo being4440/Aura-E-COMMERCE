@@ -25,7 +25,6 @@ export default function ProductCard({ product, index = 0 }) {
   };
 
   // Use a fallback image if none provided
-  // Optimize Cloudinary URLs: auto quality + webp format + resize to 600px wide
   const rawImage = product.images?.[0] || '';
   const image = rawImage
     ? (rawImage.includes('f_auto') ? rawImage : rawImage.replace('/upload/', '/upload/f_auto,q_auto,w_600/'))
