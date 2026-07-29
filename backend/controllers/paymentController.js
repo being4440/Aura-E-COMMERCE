@@ -106,6 +106,10 @@ exports.createCheckoutSession = asyncHandler(async (req, res) => {
     }]
   });
 
+  const last8 = pendingOrder._id.toString().slice(-8).toUpperCase();
+  pendingOrder.invoiceNumber = `INV-${last8}`;
+  pendingOrder.invoiceGeneratedAt = new Date();
+
   await pendingOrder.save();
 
   // 2. Create Stripe session with orderId in metadata (avoids 500-char limit)

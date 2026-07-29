@@ -112,6 +112,10 @@ exports.placeOrder = asyncHandler(async (req, res) => {
       }]
     });
 
+    const last8 = newOrder._id.toString().slice(-8).toUpperCase();
+    newOrder.invoiceNumber = `INV-${last8}`;
+    newOrder.invoiceGeneratedAt = new Date();
+
     const savedOrder = await newOrder.save({ session });
 
     await session.commitTransaction();
@@ -267,15 +271,8 @@ exports.downloadInvoice = asyncHandler(async (req, res) => {
   }
 
   if (!order.invoiceNumber) {
-    const currentYear = new Date().getFullYear();
-    const Counter = require('../models/Counter');
-    const counter = await Counter.findByIdAndUpdate(
-      { _id: `invoice_${currentYear}` },
-      { $inc: { seq: 1 } },
-      { new: true, upsert: true }
-    );
-    const seqString = counter.seq.toString().padStart(6, '0');
-    order.invoiceNumber = `INV-${currentYear}-${seqString}`;
+    const last8 = order._id.toString().slice(-8).toUpperCase();
+    order.invoiceNumber = `INV-${last8}`;
     order.invoiceGeneratedAt = new Date();
     await order.save();
   }
@@ -296,9 +293,10 @@ exports.downloadInvoice = asyncHandler(async (req, res) => {
   doc.moveDown();
 
   // Invoice Info
+  const formattedOrderId = `#${order._id.toString().slice(-8).toUpperCase()}`;
   doc.fontSize(10).text(`Invoice Number: ${order.invoiceNumber}`);
   doc.text(`Invoice Date: ${new Date(order.invoiceGeneratedAt).toLocaleDateString()}`);
-  doc.text(`Order ID: ${order._id}`);
+  doc.text(`Order ID: ${formattedOrderId}`);
   doc.text(`Order Date: ${new Date(order.createdAt).toLocaleDateString()}`);
   doc.text(`Payment Method: ${order.paymentMethod.toUpperCase()}`);
   doc.text(`Payment Status: ${order.paymentStatus.toUpperCase()}`);

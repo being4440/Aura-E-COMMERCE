@@ -75,11 +75,7 @@ const OrderSchema = new mongoose.Schema({
       type: String
     }
   }],
-  returnStatus: {
-    type: String,
-    enum: ['None', 'Return Requested', 'Approved', 'Rejected'],
-    default: 'None'
-  },
+ 
   statusHistory: [{
     fromStatus: String,
     toStatus: String,
@@ -87,11 +83,21 @@ const OrderSchema = new mongoose.Schema({
     changedAt: { type: Date, default: Date.now },
     note: String
   }],
-  cancelReason: { type: String },
-  returnReason: { type: String },
   invoiceNumber: { type: String, unique: true, sparse: true },
   invoiceGeneratedAt: { type: Date },
   stripePaymentIntentId: { type: String }
+});
+
+// Automatically generate invoiceNumber from _id on order creation if not present
+OrderSchema.pre('save', function(next) {
+  if (!this.invoiceNumber && this._id) {
+    const last8 = this._id.toString().slice(-8).toUpperCase();
+    this.invoiceNumber = `INV-${last8}`;
+    if (!this.invoiceGeneratedAt) {
+      this.invoiceGeneratedAt = new Date();
+    }
+  }
+  next();
 });
 
 // Indexes for server-side search and filtering performance

@@ -1,7 +1,6 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const User = require('../models/User');
-const Counter = require('../models/Counter');
 const mongoose = require('mongoose');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const PDFDocument = require('pdfkit');
@@ -56,13 +55,25 @@ exports.getAllOrders = asyncHandler(async (req, res) => {
 
   // Search (Order ID, Customer Name/Email)
   if (search) {
-    const searchRegex = new RegExp(search, 'i');
+    const cleanSearch = search.replace(/^#/, '').trim();
+    const searchRegex = new RegExp(cleanSearch, 'i');
     const searchConditions = [
-      { 'shippingAddress.fullName': searchRegex }
+      { 'shippingAddress.fullName': searchRegex },
+      { invoiceNumber: searchRegex }
     ];
 
-    if (mongoose.Types.ObjectId.isValid(search)) {
-      searchConditions.push({ _id: search });
+    if (mongoose.Types.ObjectId.isValid(cleanSearch)) {
+      searchConditions.push({ _id: cleanSearch });
+    } else {
+      searchConditions.push({
+        $expr: {
+          $regexMatch: {
+            input: { $toString: '$_id' },
+            regex: cleanSearch,
+            options: 'i'
+          }
+        }
+      });
     }
 
     // To search by user email/username, we need to find matching users first
@@ -375,15 +386,8 @@ exports.generateInvoiceNumber = asyncHandler(async (req, res) => {
     return res.status(200).json({ success: true, message: 'Invoice already generated', data: order });
   }
 
-  const currentYear = new Date().getFullYear();
-  const counter = await Counter.findByIdAndUpdate(
-    { _id: `invoice_${currentYear}` },
-    { $inc: { seq: 1 } },
-    { new: true, upsert: true }
-  );
-
-  const seqString = counter.seq.toString().padStart(6, '0');
-  const invoiceNumber = `INV-${currentYear}-${seqString}`;
+  const last8 = order._id.toString().slice(-8).toUpperCase();
+  const invoiceNumber = `INV-${last8}`;
 
   order.invoiceNumber = invoiceNumber;
   order.invoiceGeneratedAt = new Date();
@@ -424,9 +428,10 @@ exports.downloadInvoice = asyncHandler(async (req, res) => {
   doc.moveDown();
 
   // Invoice Info
+  const formattedOrderId = `#${order._id.toString().slice(-8).toUpperCase()}`;
   doc.fontSize(10).text(`Invoice Number: ${order.invoiceNumber}`);
   doc.text(`Invoice Date: ${new Date(order.invoiceGeneratedAt).toLocaleDateString()}`);
-  doc.text(`Order ID: ${order._id}`);
+  doc.text(`Order ID: ${formattedOrderId}`);
   doc.text(`Order Date: ${new Date(order.createdAt).toLocaleDateString()}`);
   doc.text(`Payment Method: ${order.paymentMethod.toUpperCase()}`);
   doc.text(`Payment Status: ${order.paymentStatus.toUpperCase()}`);

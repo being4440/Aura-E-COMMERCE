@@ -51,7 +51,6 @@ exports.getAdminProducts = asyncHandler(async (req, res) => {
   const sortObj = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
   const skip = (parseInt(page) - 1) * parseInt(limit);
 
-  console.log("Admin get products query:", query);
   const productsRaw = await Product.find(query)
     .populate('category', 'name')
     .sort(sortObj)
@@ -65,7 +64,6 @@ exports.getAdminProducts = asyncHandler(async (req, res) => {
     }
     return pObj;
   });
-  console.log("Admin get products returned length:", products.length);
 
   const totalProducts = await Product.countDocuments(query);
 

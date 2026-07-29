@@ -16,7 +16,7 @@ const AuditLogSchema = new mongoose.Schema({
     required: true,
     // Flexible enum since it's an audit log, or we can just let it be a string.
     // Adding some common actions per requirements.
-    enum: ['CREATE', 'UPDATE', 'DELETE', 'STATUS_CHANGE', 'BLOCK', 'UNBLOCK', 'MODERATE']
+    enum: ['CREATE', 'UPDATE', 'DELETE', 'STATUS_CHANGE', 'BLOCK', 'UNBLOCK']
   },
   performedBy: {
     type: mongoose.Schema.Types.ObjectId,
