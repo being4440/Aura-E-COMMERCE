@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { adminGetOrderByIdAPI, adminUpdateOrderStatusAPI, adminCancelOrderAPI, adminReturnOrderAPI, adminGenerateInvoiceAPI } from '../../api/api';
 import { toast } from 'react-hot-toast';
 import { FiArrowLeft, FiDownload, FiXCircle, FiCheck, FiRefreshCcw, FiFileText } from 'react-icons/fi';
+import { formatOrderId } from '../../utils/formatOrderId';
 
 const STATUS_FLOW = {
   pending: ['confirmed', 'cancelled'],
@@ -151,7 +152,7 @@ export default function AdminOrderDetail() {
           <button onClick={() => navigate('/admin/orders')} className="p-2 text-luxury-gray hover:text-luxury-white transition-colors border border-luxury-gray/20 rounded">
             <FiArrowLeft size={18} />
           </button>
-          <h2 className="text-2xl font-playfair text-luxury-white">Order Details</h2>
+          <h2 className="text-2xl font-playfair text-luxury-white">Order Details <span className="text-luxury-gold font-mono text-xl">{formatOrderId(order._id)}</span></h2>
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
@@ -207,7 +208,7 @@ export default function AdminOrderDetail() {
             <div className="grid grid-cols-2 gap-4 text-luxury-gray">
               <div>
                 <span className="block text-xs uppercase tracking-wider mb-1 text-luxury-white/50">Order ID</span>
-                <span className="text-luxury-white font-mono">{order._id}</span>
+                <span className="text-luxury-white font-mono">{formatOrderId(order._id)}</span>
               </div>
               <div>
                 <span className="block text-xs uppercase tracking-wider mb-1 text-luxury-white/50">Date Placed</span>

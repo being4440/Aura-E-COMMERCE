@@ -51,14 +51,7 @@ export default function AdminLayout({ handleLogout }) {
     closeSidebar();
   };
 
-  const handleLogoutClick = () => {
-    closeSidebar();
-
-    if (handleLogout) {
-      handleLogout();
-    }
-  };
-
+ 
   const links = [
     { path: '/admin', label: 'Dashboard', icon: FiHome, end: true },
     { path: '/admin/orders', label: 'Orders', icon: FiBox },
@@ -134,16 +127,6 @@ export default function AdminLayout({ handleLogout }) {
             );
           })}
         </nav>
-        <div className="border-t border-luxury-gray/10 p-4">
-          <button
-            type="button"
-            onClick={handleLogoutClick}
-            className="flex w-full items-center gap-3 px-4 py-3 text-luxury-gray transition-colors hover:text-red-400"
-          >
-            <FiLogOut size={18} />
-            <span className="font-poppins text-xs uppercase tracking-widest">Logout</span>
-          </button>
-        </div>
       </motion.aside>
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">

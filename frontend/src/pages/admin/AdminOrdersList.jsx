@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { adminGetOrdersAPI } from '../../api/api';
 import { toast } from 'react-hot-toast';
 import { FiSearch, FiEye, FiFilter, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { formatOrderId } from '../../utils/formatOrderId';
 
 const statusColors = {
   'pending': 'bg-yellow-500/20 text-yellow-500 border-yellow-500/30',
@@ -146,7 +147,7 @@ export default function AdminOrdersList() {
             ) : (
               orders.map((order) => (
                 <tr key={order._id} className="border-b border-luxury-gray/5 hover:bg-luxury-gray/5 transition-colors font-inter text-sm">
-                  <td className="p-4 text-luxury-white/70 font-mono">{order._id.substring(order._id.length - 8).toUpperCase()}</td>
+                  <td className="p-4 text-luxury-white/70 font-mono">{formatOrderId(order._id)}</td>
                   <td className="p-4 text-luxury-white/80">{new Date(order.createdAt).toLocaleDateString()}</td>
                   <td className="p-4">
                     <div className="text-luxury-white">{order.shippingAddress?.fullName}</div>

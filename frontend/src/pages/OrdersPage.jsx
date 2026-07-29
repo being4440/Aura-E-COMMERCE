@@ -4,6 +4,7 @@ import { FiBox, FiPackage, FiTruck, FiCheck, FiXCircle, FiAlertTriangle } from '
 import { Link } from 'react-router-dom';
 import api from '../api/api';
 import toast from 'react-hot-toast';
+import { formatOrderId } from '../utils/formatOrderId';
 
 // Statuses from which a user can cancel
 const CANCELLABLE_STATUSES = ['processing', 'confirmed', 'pending', 'packed'];
@@ -133,7 +134,7 @@ const OrdersPage = () => {
                     </div>
                     <div>
                       <p className="text-[10px] font-poppins uppercase tracking-widest text-luxury-gray mb-1">Order ID</p>
-                      <p className="text-luxury-white font-inter text-sm">#{order._id.substring(0, 10)}...</p>
+                      <p className="text-luxury-white font-inter text-sm font-mono">{formatOrderId(order._id)}</p>
                     </div>
                   </div>
 

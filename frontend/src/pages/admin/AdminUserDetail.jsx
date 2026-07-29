@@ -4,6 +4,7 @@ import { adminGetUserByIdAPI, adminUpdateUserBlockAPI } from '../../api/api';
 import { toast } from 'react-hot-toast';
 import { FiArrowLeft, FiShieldOff, FiShield, FiUser, FiMapPin, FiPhone, FiMail, FiShoppingBag, FiHeart } from 'react-icons/fi';
 import dayjs from 'dayjs';
+import { formatOrderId } from '../../utils/formatOrderId';
 
 export default function AdminUserDetail() {
   const { id } = useParams();
@@ -155,7 +156,7 @@ export default function AdminUserDetail() {
                       <tr key={order._id} className="border-b border-luxury-gray/10 hover:bg-luxury-secondary/50 transition-colors">
                         <td className="p-3">
                           <Link to={`/admin/orders/${order._id}`} className="text-luxury-gold hover:underline">
-                            #{order._id.substring(order._id.length - 6)}
+                            {formatOrderId(order._id)}
                           </Link>
                         </td>
                         <td className="p-3 text-luxury-gray">{dayjs(order.createdAt).format('DD MMM YYYY')}</td>

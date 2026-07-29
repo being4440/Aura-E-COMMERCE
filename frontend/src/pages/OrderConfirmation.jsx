@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiCheckCircle, FiBox, FiCalendar, FiArrowRight } from 'react-icons/fi';
 import api from '../api/api';
+import { formatOrderId } from '../utils/formatOrderId';
 
 const OrderConfirmation = () => {
   const { id } = useParams();
@@ -91,7 +92,7 @@ const OrderConfirmation = () => {
             <FiBox className="text-luxury-gold mt-1" size={24} />
             <div>
               <p className="text-xs font-poppins uppercase tracking-widest text-luxury-gray mb-1">Order ID</p>
-              <p className="text-lg font-inter text-luxury-white">#{order._id}</p>
+              <p className="text-lg font-inter text-luxury-white font-mono">{formatOrderId(order._id)}</p>
             </div>
           </div>
 

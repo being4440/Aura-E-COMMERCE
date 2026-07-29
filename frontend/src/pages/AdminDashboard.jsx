@@ -4,6 +4,7 @@ import { adminGetDashboardStatsAPI, adminGetRecentOrdersAPI, adminGetTopProducts
 import { toast } from 'react-hot-toast';
 import { FiUsers, FiBox, FiShoppingBag, FiDollarSign, FiClock, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
 import dayjs from 'dayjs';
+import { formatOrderId } from '../utils/formatOrderId';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
@@ -93,7 +94,7 @@ export default function AdminDashboard() {
                   <tr key={order._id} className="border-b border-luxury-gray/5 last:border-0 hover:bg-luxury-secondary/50">
                     <td className="py-3">
                       <Link to={`/admin/orders/${order._id}`} className="text-luxury-gold hover:underline">
-                        #{order._id.substring(order._id.length - 6)}
+                        {formatOrderId(order._id)}
                       </Link>
                     </td>
                     <td className="py-3 text-luxury-gray">{dayjs(order.createdAt).format('DD MMM, HH:mm')}</td>
