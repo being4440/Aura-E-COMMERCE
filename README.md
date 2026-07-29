@@ -1,4 +1,4 @@
-# E-COMMERCE
+# Aura E-COMMERCE
 
 A full-stack MERN e-commerce platform named "Aura," designed for a luxury market. It features a complete customer-facing storefront and a comprehensive administrative dashboard for managing the application. The project is built with a modern technology stack, including React with Redux for the frontend and a Node.js/Express backend with MongoDB.
 
